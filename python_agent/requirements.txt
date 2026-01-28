@@ -1,0 +1,19 @@
+# Gaia Link Agent Dependencies
+
+# SpoonOS SDK (核心依賴)
+# 從 GitHub 安裝: pip install git+https://github.com/XSpoonAi/spoon-core.git
+spoon-ai-sdk>=0.3.0
+
+# Data Validation
+pydantic>=2.10.0
+
+# Async HTTP Client
+aiohttp>=3.9.0
+
+# Environment Variables
+python-dotenv>=1.0.0
+
+# Development Dependencies
+pytest>=8.0.0
+pytest-asyncio>=0.23.0
+pytest-cov>=4.1.0
