@@ -1,0 +1,20 @@
+#!/bin/sh
+
+echo "🔍 Running type check in frontend..."
+cd frontend
+bun run type-check
+
+if [ $? -ne 0 ]; then
+  echo "❌ Type check failed. Push aborted."
+  exit 1
+fi
+
+echo "🧪 Running tests in frontend..."
+bun run test
+
+if [ $? -ne 0 ]; then
+  echo "❌ Tests failed. Push aborted."
+  exit 1
+fi
+
+echo "✅ All checks passed!"
