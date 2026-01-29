@@ -50,6 +50,7 @@ branch = true
 omit = [
     "gaia_link/schemas.py",  # Pydantic 模型定義，不需要測試
     "gaia_link/services/sepolia_blockchain.py",  # 需要 web3，整合測試時另行測試
+    "gaia_link/services/polymarket/real_polymarket.py",  # 需要實際 API，整合測試時另行測試
 ]
 
 [tool.coverage.report]

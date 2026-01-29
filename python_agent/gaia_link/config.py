@@ -20,6 +20,12 @@ class BlockchainNetwork(str, Enum):
     MAINNET = "mainnet"  # 未來支援
 
 
+class PolymarketMode(str, Enum):
+    """Polymarket 服務模式"""
+    MOCK = "mock"
+    REAL = "real"
+
+
 class Settings(BaseSettings):
     """
     應用程式配置
@@ -50,10 +56,20 @@ class Settings(BaseSettings):
         description="錢包私鑰 (僅用於測試網)",
     )
 
-    # API 配置
+    # Polymarket 配置
+    polymarket_mode: PolymarketMode = Field(
+        default=PolymarketMode.MOCK,
+        description="Polymarket 服務模式 (mock, real)",
+    )
+
     polymarket_api_url: str = Field(
-        default="https://clob.polymarket.com",
+        default="https://gamma-api.polymarket.com",
         description="Polymarket API URL",
+    )
+
+    polymarket_timeout: int = Field(
+        default=30,
+        description="Polymarket API 請求超時（秒）",
     )
 
     # 日誌配置
@@ -87,8 +103,16 @@ class Settings(BaseSettings):
         return self.blockchain_network == BlockchainNetwork.SEPOLIA
 
     def is_mock(self) -> bool:
-        """檢查是否為 Mock 模式"""
+        """檢查是否為 Mock 區塊鏈模式"""
         return self.blockchain_network == BlockchainNetwork.MOCK
+
+    def is_polymarket_mock(self) -> bool:
+        """檢查是否為 Polymarket Mock 模式"""
+        return self.polymarket_mode == PolymarketMode.MOCK
+
+    def is_polymarket_real(self) -> bool:
+        """檢查是否為 Polymarket Real 模式"""
+        return self.polymarket_mode == PolymarketMode.REAL
 
 
 @lru_cache
@@ -124,4 +148,32 @@ def get_blockchain_service():
     else:
         raise NotImplementedError(
             f"Network {settings.blockchain_network} is not yet supported"
+        )
+
+
+def get_polymarket_service():
+    """
+    根據配置獲取對應的 Polymarket 服務
+
+    Returns:
+        PolymarketService: Polymarket 服務實例
+    """
+    settings = get_settings()
+
+    if settings.is_polymarket_mock():
+        from gaia_link.services.polymarket import MockPolymarketService
+
+        return MockPolymarketService()
+
+    elif settings.is_polymarket_real():
+        from gaia_link.services.polymarket import get_real_polymarket_service
+
+        return get_real_polymarket_service(
+            api_base=settings.polymarket_api_url,
+            timeout=settings.polymarket_timeout,
+        )
+
+    else:
+        raise NotImplementedError(
+            f"Polymarket mode {settings.polymarket_mode} is not supported"
         )

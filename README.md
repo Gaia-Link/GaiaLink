@@ -1,16 +1,54 @@
-# Gaia Link - SpoonOS AI Agent
+# Gaia Link (蓋亞連結)
 
-> 人道救援協作網絡的 AI 智能層子專案
+> 基於 3D 地球的「人道救援協作網絡」
 
 ---
 
-## 簡介
+## 核心願景
 
-這是 Gaia Link 專案中的 **SpoonOS Agent 子專案**（Role 2: AI Engineer），負責實作 AI 智能層功能。
+**一句話介紹：**
 
-**Agent 扮演兩個角色：**
-- **審計師 (Auditor):** 驗證危機求助貼文的真實性，比對 Polymarket 預測市場數據
-- **支付官 (Payer):** 執行安全的區塊鏈捐款交易，計算 Gas 費用
+Gaia Link 是一個基於 3D 地球的**「人道救援協作網絡」**。我們將宏觀的危機數據 (Polymarket) 與微觀的現場聲音 (Geo-Forum) 結合，並由 **SpoonOS AI Agent** 負責驗證資訊真實性與執行無感支付。
+
+**核心邏輯：**
+
+- **看見 (Visualize):** 用 3D 地球打破資訊孤島，直觀展示哪裡「紅了」（有危機）。
+- **連結 (Connect):** 點擊紅區進入「地圖論壇」，看到當地人的真實求救與照片。
+- **行動 (Action):** SpoonOS Agent 實時驗證貼文真偽，並協助用戶一鍵跨鏈捐贈。
+
+---
+
+## 產品三大支柱
+
+### A. 視覺層：The Living Globe (前端核心)
+
+- **上帝視角：** 使用 `Three.js` / `react-globe.gl`
+- **數據分層：**
+  - Red Zones (熱區): 來自 Polymarket 的災難預測數據
+  - Blue Bubbles (聲音): 論壇貼文的聚合氣泡
+  - Green Nodes (組織): 經過驗證的救援 DAO 或公益錢包
+
+### B. 交互層：The Geo-Forum (論壇與社群)
+
+- **形式：** 覆蓋在地球上的 Overlay（側邊欄或懸浮窗）
+- **內容：** 「現場照片」、「需求清單」、「情況更新」
+- **體驗：** 就像在 Google Maps 上看餐廳評論，但這裡是看災區需求
+
+### C. 智能層：SpoonOS Agent (大腦與手腳) - **本子專案**
+
+- **角色 1 - 審計師 (Auditor):** 自動掃描 Polymarket 和新聞源，給出「資訊可信」或「疑似詐騙」的標籤
+- **角色 2 - 支付官 (Payer):** 負責後端的 Swap、Gas 費計算和轉帳，用戶只需確認意圖
+
+---
+
+## 團隊分工
+
+| Role | 負責人 | 職責 |
+|------|--------|------|
+| Role 1 | Frontend Wizard | 視覺與互動 (react-globe.gl, 論壇 UI) |
+| **Role 2** | **AI Engineer** | **SpoonOS Agent 邏輯 (本專案)** |
+| Role 3 | Data & Backend | 數據流與模擬 (Polymarket API) |
+| Role 4 | PM & Storyteller | 簡報與流程 |
 
 ---
 
@@ -18,10 +56,27 @@
 
 | 項目 | 技術 |
 |------|------|
+| Frontend | Next.js, Three.js (react-globe.gl), Tailwind CSS |
+| AI Agent | SpoonOS SDK (LangChain/ReAct pattern) |
+| Data Source | Polymarket API (CLOB/Gamma), GDELT (Optional) |
+| Storage | JSON (MVP) / Arweave (Bonus) |
+
+---
+
+# SpoonOS AI Agent 子專案
+
+> Role 2: AI Engineer - SpoonOS Agent 邏輯
+
+---
+
+## Agent 技術棧
+
+| 項目 | 技術 |
+|------|------|
 | 語言 | Python 3.10+ |
 | Agent 框架 | SpoonOS SDK (`spoon-ai`) - React Agent |
 | 數據驗證 | Pydantic |
-| 測試 | pytest（97%+ 覆蓋率，50 個測試） |
+| 測試 | pytest（93%+ 覆蓋率，134 個測試） |
 
 ---
 
@@ -32,14 +87,22 @@ python_agent/
 ├── gaia_link/
 │   ├── agent.py           # GaiaLinkAgent (繼承 SpoonReactAI)
 │   ├── schemas.py         # Pydantic 數據模型
+│   ├── config.py          # 配置管理 (pydantic-settings)
+│   ├── services/          # 服務層抽象
+│   │   ├── base.py                  # BlockchainService 抽象基類
+│   │   ├── mock_blockchain.py       # Mock 區塊鏈實作
+│   │   ├── sepolia_blockchain.py    # Sepolia 測試網實作
+│   │   └── polymarket/              # Polymarket 服務
+│   │       ├── base.py              # PolymarketService 抽象基類
+│   │       ├── mock_polymarket.py   # Mock 實作
+│   │       └── real_polymarket.py   # 真實 API 實作
 │   └── tools/
-│       ├── verify_crisis.py      # 危機驗證工具
-│       ├── analyze_sentiment.py  # 情感分析工具
-│       └── execute_donation.py   # 捐款執行工具
+│       ├── verify_crisis.py         # 危機驗證工具
+│       ├── analyze_sentiment.py     # 情感分析工具
+│       └── execute_donation.py      # 捐款執行工具
 ├── tests/                 # 測試檔案
 ├── main.py                # Demo 入口
-├── pyproject.toml         # 專案配置
-└── requirements.txt       # 依賴清單
+└── pyproject.toml         # 專案配置
 ```
 
 ---
@@ -66,6 +129,22 @@ pytest --cov=gaia_link
 
 ---
 
+## 環境變數配置
+
+```bash
+# 區塊鏈服務 (默認: mock)
+BLOCKCHAIN_NETWORK=mock           # mock | sepolia | mainnet
+SEPOLIA_RPC_URL=https://...       # Sepolia 模式需要
+WALLET_PRIVATE_KEY=...            # Sepolia 模式需要
+
+# Polymarket 服務 (默認: mock)
+POLYMARKET_MODE=mock              # mock | real
+POLYMARKET_API_URL=https://gamma-api.polymarket.com
+POLYMARKET_TIMEOUT=30
+```
+
+---
+
 ## 三個核心工具 API
 
 ### 1. `verify_crisis` - 驗證危機真實性
@@ -85,14 +164,15 @@ result = await tool.execute(lat=37.5, long=37.0)
 }
 ```
 
-**內建 Mock 危機區域：**
+**支援的危機區域 (Mock)：**
 
 | 區域 | 緯度範圍 | 經度範圍 |
 |------|----------|----------|
-| 土耳其地震 | 36-39 | 35-42 |
+| 土耳其-敘利亞地震 | 36-39 | 35-42 |
 | 菲律賓颱風 | 5-20 | 117-127 |
 | 烏克蘭衝突 | 44-52 | 22-40 |
 | 加薩人道危機 | 31-32 | 34-35 |
+| 日本地震 | 32-42 | 130-145 |
 
 ---
 
@@ -120,7 +200,7 @@ result = await tool.execute(
 
 ### 3. `execute_donation` - 執行捐款
 
-模擬區塊鏈捐款交易，支援 USDC、USDT、ETH、DAI。
+執行區塊鏈捐款交易，支援 USDC、USDT、ETH、DAI。
 
 ```python
 result = await tool.execute(
@@ -150,41 +230,46 @@ result = await tool.execute(
 
 | 要求 | 狀態 | 證據 |
 |------|------|------|
-| 基於 SpoonOS 構建 | ✅ | `from spoon_ai.agents import SpoonReactAI` |
-| 使用 React Agent 體系 | ✅ | `class GaiaLinkAgent(SpoonReactAI)` |
-| Agent 承擔實際功能 | ✅ | 三個核心工具，非 Demo 展示 |
-| 工具繼承 BaseTool | ✅ | `from spoon_ai.tools.base import BaseTool` |
+| 基於 SpoonOS 構建 | OK | `from spoon_ai.agents import SpoonReactAI` |
+| 使用 React Agent 體系 | OK | `class GaiaLinkAgent(SpoonReactAI)` |
+| Agent 承擔實際功能 | OK | 三個核心工具，非 Demo 展示 |
+| 工具繼承 BaseTool | OK | `from spoon_ai.tools.base import BaseTool` |
 
-**程式碼片段：**
+---
 
-```python
-# gaia_link/agent.py
-from spoon_ai.agents import SpoonReactAI
-from spoon_ai.tools import ToolManager
+## 開發路線圖
 
-class GaiaLinkAgent(SpoonReactAI):
-    name = "gaia_link_agent"
-    available_tools = ToolManager([
-        VerifyCrisisTool(),
-        AnalyzeSentimentTool(),
-        ExecuteDonationTool(),
-    ])
+### Phase 1: 區塊鏈服務層 - DONE
 
-# gaia_link/tools/verify_crisis.py
-from spoon_ai.tools.base import BaseTool
+- BlockchainService 抽象基類
+- MockBlockchainService（Mock 模式）
+- SepoliaBlockchainService（測試網模式）
+- 依賴注入與配置管理
 
-class VerifyCrisisTool(BaseTool):
-    name = "verify_crisis"
-    async def execute(self, lat, long): ...
-```
+### Phase 2: Polymarket API 整合 - DONE
+
+- PolymarketService 抽象基類
+- MockPolymarketService（5 個危機區域）
+- RealPolymarketService（gamma-api 整合）
+- VerifyCrisisTool 重構
+
+### Phase 3: ML 情感分析模型 - PENDING
+
+- Hugging Face Transformers 整合
+- 本地推理 / API 模式切換
+
+### Phase 4: Rate Limiting + Audit Logging - PENDING
+
+- 請求限流機制
+- 審計日誌系統
 
 ---
 
 ## 測試結果
 
 ```
-============================= 50 passed in 58.97s ==============================
-Coverage: 97.12%
+============================= 134 passed ==============================
+Coverage: 93.07%
 ```
 
 ---

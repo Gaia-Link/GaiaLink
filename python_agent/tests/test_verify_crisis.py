@@ -1,12 +1,13 @@
 """
 verify_crisis 工具單元測試
 
-TDD RED Phase: 先撰寫測試，確保測試失敗
+測試 VerifyCrisisTool 與 Polymarket 服務層整合
 """
 
 import pytest
 
 from gaia_link.tools.verify_crisis import VerifyCrisisTool
+from gaia_link.services.polymarket import MockPolymarketService
 
 
 class TestVerifyCrisisTool:
@@ -96,3 +97,58 @@ class TestVerifyCrisisTool:
         assert param["type"] == "function"
         assert param["function"]["name"] == "verify_crisis"
         assert "parameters" in param["function"]
+
+
+class TestVerifyCrisisToolDependencyInjection:
+    """VerifyCrisisTool 依賴注入測試"""
+
+    @pytest.fixture
+    def mock_service(self):
+        """建立 Mock 服務實例"""
+        return MockPolymarketService()
+
+    @pytest.fixture
+    def tool_with_service(self, mock_service):
+        """建立帶有注入服務的工具實例"""
+        return VerifyCrisisTool(polymarket_service=mock_service)
+
+    def test_can_inject_service(self, mock_service):
+        """應能注入 Polymarket 服務"""
+        tool = VerifyCrisisTool(polymarket_service=mock_service)
+        assert tool._polymarket_service is mock_service
+
+    def test_default_service_is_none(self):
+        """默認服務應為 None"""
+        tool = VerifyCrisisTool()
+        assert tool._polymarket_service is None
+
+    @pytest.mark.asyncio
+    async def test_execute_uses_injected_service(self, tool_with_service):
+        """execute 應使用注入的服務"""
+        result = await tool_with_service.execute(lat=37.5, long=38.0)
+
+        assert result["status"] == "VERIFIED"
+        assert result["confidence"] > 0
+
+    @pytest.mark.asyncio
+    async def test_execute_turkey_verified(self, tool_with_service):
+        """土耳其座標應返回 VERIFIED"""
+        result = await tool_with_service.execute(lat=37.5, long=38.0)
+
+        assert result["status"] == "VERIFIED"
+        assert "Turkey" in result["recommendation"] or "region" in result["recommendation"].lower()
+
+    @pytest.mark.asyncio
+    async def test_execute_gaza_verified(self, tool_with_service):
+        """加薩座標應返回 VERIFIED"""
+        result = await tool_with_service.execute(lat=31.5, long=34.5)
+
+        assert result["status"] == "VERIFIED"
+
+    @pytest.mark.asyncio
+    async def test_execute_unknown_location_suspicious(self, tool_with_service):
+        """未知位置應返回 SUSPICIOUS"""
+        result = await tool_with_service.execute(lat=0.0, long=-150.0)
+
+        assert result["status"] == "SUSPICIOUS"
+        assert len(result["risk_factors"]) > 0

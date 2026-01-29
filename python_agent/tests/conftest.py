@@ -23,22 +23,30 @@ def event_loop_policy():
 def reset_settings_cache():
     """每個測試前重置配置緩存並設置默認環境"""
     # 保存原始環境變數
-    original_env = os.environ.get("BLOCKCHAIN_NETWORK")
+    original_blockchain = os.environ.get("BLOCKCHAIN_NETWORK")
+    original_polymarket = os.environ.get("POLYMARKET_MODE")
 
     # 設置默認環境變數為 mock
     os.environ["BLOCKCHAIN_NETWORK"] = "mock"
+    os.environ["POLYMARKET_MODE"] = "mock"
 
     # 清除緩存
     from gaia_link.config import get_settings
+
     get_settings.cache_clear()
 
     yield
 
     # 測試後恢復原始環境變數
-    if original_env is not None:
-        os.environ["BLOCKCHAIN_NETWORK"] = original_env
+    if original_blockchain is not None:
+        os.environ["BLOCKCHAIN_NETWORK"] = original_blockchain
     elif "BLOCKCHAIN_NETWORK" in os.environ:
         del os.environ["BLOCKCHAIN_NETWORK"]
+
+    if original_polymarket is not None:
+        os.environ["POLYMARKET_MODE"] = original_polymarket
+    elif "POLYMARKET_MODE" in os.environ:
+        del os.environ["POLYMARKET_MODE"]
 
     # 清除緩存
     get_settings.cache_clear()

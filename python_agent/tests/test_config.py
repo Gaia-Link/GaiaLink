@@ -9,10 +9,12 @@ from unittest.mock import patch
 from gaia_link.config import (
     Settings,
     BlockchainNetwork,
+    PolymarketMode,
     get_settings,
     get_blockchain_service,
+    get_polymarket_service,
 )
-from gaia_link.services import MockBlockchainService
+from gaia_link.services import MockBlockchainService, MockPolymarketService
 
 
 class TestBlockchainNetwork:
@@ -137,3 +139,86 @@ class TestGetBlockchainService:
             get_settings.cache_clear()
             with pytest.raises(NotImplementedError):
                 get_blockchain_service()
+
+
+class TestPolymarketMode:
+    """PolymarketMode 枚舉測試"""
+
+    def test_mock_value(self):
+        """MOCK 應有正確的值"""
+        assert PolymarketMode.MOCK.value == "mock"
+
+    def test_real_value(self):
+        """REAL 應有正確的值"""
+        assert PolymarketMode.REAL.value == "real"
+
+
+class TestPolymarketSettings:
+    """Polymarket 配置測試"""
+
+    def test_default_polymarket_mode(self):
+        """默認應使用 MOCK 模式"""
+        with patch.dict(os.environ, {}, clear=True):
+            settings = Settings()
+            assert settings.polymarket_mode == PolymarketMode.MOCK
+
+    def test_default_polymarket_api_url(self):
+        """默認 Polymarket API URL 應為 gamma-api"""
+        with patch.dict(os.environ, {}, clear=True):
+            settings = Settings()
+            assert "gamma-api.polymarket.com" in settings.polymarket_api_url
+
+    def test_default_polymarket_timeout(self):
+        """默認超時應為 30 秒"""
+        with patch.dict(os.environ, {}, clear=True):
+            settings = Settings()
+            assert settings.polymarket_timeout == 30
+
+    def test_is_polymarket_mock(self):
+        """is_polymarket_mock 應在 MOCK 模式時返回 True"""
+        with patch.dict(os.environ, {"POLYMARKET_MODE": "mock"}, clear=True):
+            settings = Settings()
+            assert settings.is_polymarket_mock() is True
+            assert settings.is_polymarket_real() is False
+
+    def test_is_polymarket_real(self):
+        """is_polymarket_real 應在 REAL 模式時返回 True"""
+        with patch.dict(os.environ, {"POLYMARKET_MODE": "real"}, clear=True):
+            settings = Settings()
+            assert settings.is_polymarket_real() is True
+            assert settings.is_polymarket_mock() is False
+
+    def test_polymarket_env_override(self):
+        """環境變數應能覆蓋 Polymarket 設置"""
+        env = {
+            "POLYMARKET_MODE": "real",
+            "POLYMARKET_API_URL": "https://custom-api.example.com",
+            "POLYMARKET_TIMEOUT": "60",
+        }
+        with patch.dict(os.environ, env, clear=True):
+            settings = Settings()
+            assert settings.polymarket_mode == PolymarketMode.REAL
+            assert settings.polymarket_api_url == "https://custom-api.example.com"
+            assert settings.polymarket_timeout == 60
+
+
+class TestGetPolymarketService:
+    """get_polymarket_service 函數測試"""
+
+    def test_returns_mock_service_by_default(self):
+        """默認應返回 MockPolymarketService"""
+        get_settings.cache_clear()
+        with patch.dict(os.environ, {"POLYMARKET_MODE": "mock"}, clear=True):
+            get_settings.cache_clear()
+            service = get_polymarket_service()
+            assert isinstance(service, MockPolymarketService)
+
+    def test_returns_mock_service_explicitly(self):
+        """明確設置 mock 模式應返回 MockPolymarketService"""
+        get_settings.cache_clear()
+        env = {"POLYMARKET_MODE": "mock", "BLOCKCHAIN_NETWORK": "mock"}
+        with patch.dict(os.environ, env, clear=True):
+            get_settings.cache_clear()
+            service = get_polymarket_service()
+            assert isinstance(service, MockPolymarketService)
+            assert service.service_name == "mock"

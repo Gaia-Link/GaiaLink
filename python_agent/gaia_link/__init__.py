@@ -6,6 +6,7 @@ Gaia Link Agent - 基於 SpoonOS 的人道救援 AI Agent
 - 三個自定義工具繼承 BaseTool
 - 支援危機驗證、情感分析、捐款執行
 - 可切換的區塊鏈服務層（Mock/Sepolia）
+- 可切換的 Polymarket 服務層（Mock/Real）
 """
 
 from gaia_link.agent import GaiaLinkAgent
@@ -14,14 +15,25 @@ from gaia_link.tools import (
     AnalyzeSentimentTool,
     ExecuteDonationTool,
 )
-from gaia_link.config import get_settings, get_blockchain_service, Settings
+from gaia_link.config import (
+    get_settings,
+    get_blockchain_service,
+    get_polymarket_service,
+    Settings,
+)
 from gaia_link.services import (
+    # Blockchain
     BlockchainService,
     TransactionResult,
     MockBlockchainService,
+    # Polymarket
+    PolymarketService,
+    MarketData,
+    CrisisSearchResult,
+    MockPolymarketService,
 )
 
-__version__ = "1.1.0"
+__version__ = "1.2.0"
 __all__ = [
     # Agent
     "GaiaLinkAgent",
@@ -32,9 +44,15 @@ __all__ = [
     # Config
     "get_settings",
     "get_blockchain_service",
+    "get_polymarket_service",
     "Settings",
-    # Services
+    # Blockchain Services
     "BlockchainService",
     "TransactionResult",
     "MockBlockchainService",
+    # Polymarket Services
+    "PolymarketService",
+    "MarketData",
+    "CrisisSearchResult",
+    "MockPolymarketService",
 ]
