@@ -1,37 +1,40 @@
 """
 execute_donation 工具 - 執行捐款交易
 
-基於 SpoonOS BaseTool 實現，模擬區塊鏈捐款交易
+基於 SpoonOS BaseTool 實現，支援 Mock 和真實區塊鏈交易
 """
 
-import hashlib
-import secrets
-import time
 from typing import Optional
 
 from spoon_ai.tools.base import BaseTool
 
+from gaia_link.config import get_blockchain_service, get_settings
+from gaia_link.services.base import BlockchainService
+
+
 # 支援的代幣列表
 SUPPORTED_TOKENS = ["USDC", "USDT", "ETH", "DAI"]
 
-# 代幣對美元的模擬匯率
+# 代幣對美元的參考匯率
 TOKEN_USD_RATES = {
     "USDC": 1.0,
     "USDT": 1.0,
     "ETH": 2500.0,
-    "DAI": 1.0
+    "DAI": 1.0,
 }
-
-# 模擬的 Gas 費用範圍 (ETH)
-GAS_FEE_RANGE = (0.001, 0.005)
 
 
 class ExecuteDonationTool(BaseTool):
     """
     執行人道救援捐款交易
 
-    模擬區塊鏈上的代幣轉帳，支援 USDC、USDT、ETH、DAI 等代幣。
-    計算 Gas 費用並產生交易 ID。
+    支援兩種模式：
+    - Mock 模式：用於測試和 Demo，不連接真實區塊鏈
+    - Sepolia 模式：連接以太坊 Sepolia 測試網執行真實交易
+
+    模式透過環境變數 BLOCKCHAIN_NETWORK 控制：
+    - mock (默認): 使用 MockBlockchainService
+    - sepolia: 使用 SepoliaBlockchainService
     """
 
     name: str = "execute_donation"
@@ -61,6 +64,25 @@ class ExecuteDonationTool(BaseTool):
         "required": ["amount", "token", "recipient_address"]
     }
 
+    # 允許注入自定義服務（用於測試）
+    _blockchain_service: Optional[BlockchainService] = None
+
+    def __init__(self, blockchain_service: Optional[BlockchainService] = None, **data):
+        """
+        初始化工具
+
+        Args:
+            blockchain_service: 可選的區塊鏈服務實例（用於依賴注入）
+        """
+        super().__init__(**data)
+        self._blockchain_service = blockchain_service
+
+    def _get_service(self) -> BlockchainService:
+        """獲取區塊鏈服務實例"""
+        if self._blockchain_service is not None:
+            return self._blockchain_service
+        return get_blockchain_service()
+
     async def execute(self, amount: float, token: str, recipient_address: str) -> dict:
         """
         執行捐款交易
@@ -73,87 +95,41 @@ class ExecuteDonationTool(BaseTool):
         Returns:
             交易結果字典，包含 success, transaction_id, status, details, explorer_url, error
         """
-        # 驗證金額
-        if amount <= 0:
-            return self._build_error_response("Donation amount must be positive")
+        # 獲取服務
+        service = self._get_service()
+        settings = get_settings()
 
-        # 驗證代幣
-        if token not in SUPPORTED_TOKENS:
-            return self._build_error_response(
-                f"Unsupported token: {token}. Supported tokens: {', '.join(SUPPORTED_TOKENS)}"
-            )
+        # 執行交易
+        result = await service.send_transaction(
+            amount=amount,
+            token=token,
+            recipient_address=recipient_address,
+        )
 
-        # 驗證地址格式
-        if not self._is_valid_address(recipient_address):
-            return self._build_error_response(
-                f"Invalid recipient address format: {recipient_address}"
-            )
-
-        # 模擬交易執行
-        return self._execute_mock_transaction(amount, token, recipient_address)
-
-    def _is_valid_address(self, address: str) -> bool:
-        """驗證以太坊地址格式"""
-        if not address:
-            return False
-
-        # 簡單的以太坊地址驗證（0x 開頭，40 個十六進位字符）
-        if address.startswith("0x") and len(address) == 42:
-            try:
-                int(address[2:], 16)
-                return True
-            except ValueError:
-                return False
-
-        return False
-
-    def _execute_mock_transaction(
-        self,
-        amount: float,
-        token: str,
-        recipient_address: str
-    ) -> dict:
-        """執行模擬交易"""
-        # 生成交易 ID
-        tx_id = self._generate_transaction_id(amount, token, recipient_address)
-
-        # 計算 Gas 費用（使用固定值以確保 Demo 穩定）
-        gas_fee = (GAS_FEE_RANGE[0] + GAS_FEE_RANGE[1]) / 2
+        # 如果交易失敗，返回錯誤
+        if not result.success:
+            return self._build_error_response(result.error or "Transaction failed")
 
         # 計算總成本（美元）
         token_rate = TOKEN_USD_RATES.get(token, 1.0)
-        eth_rate = TOKEN_USD_RATES["ETH"]
         amount_usd = amount * token_rate
-        gas_usd = gas_fee * eth_rate
-        total_cost_usd = amount_usd + gas_usd
+        total_cost_usd = amount_usd + result.gas_fee_usd
 
         # 構建成功回應
         return {
             "success": True,
-            "transaction_id": tx_id,
-            "status": "confirmed",
+            "transaction_id": result.transaction_id,
+            "status": result.status,
             "details": {
                 "amount_sent": amount,
                 "token": token,
-                "gas_fee": round(gas_fee, 6),
-                "total_cost_usd": round(total_cost_usd, 2)
+                "gas_fee": result.gas_fee,
+                "total_cost_usd": round(total_cost_usd, 2),
+                "network": service.network_name,
             },
-            "explorer_url": f"https://etherscan.io/tx/{tx_id}",
-            "error": None
+            "explorer_url": result.explorer_url,
+            "error": None,
         }
-
-    def _generate_transaction_id(
-        self,
-        amount: float,
-        token: str,
-        recipient_address: str
-    ) -> str:
-        """生成模擬交易 ID"""
-        # 使用加密安全的隨機數生成唯一 ID
-        random_bytes = secrets.token_hex(16)
-        data = f"{amount}{token}{recipient_address}{time.time()}{random_bytes}"
-        hash_bytes = hashlib.sha256(data.encode()).hexdigest()
-        return f"0x{hash_bytes}"
 
     def _build_error_response(self, error_message: str) -> dict:
         """構建錯誤回應"""
@@ -163,5 +139,13 @@ class ExecuteDonationTool(BaseTool):
             "status": "failed",
             "details": None,
             "explorer_url": None,
-            "error": error_message
+            "error": error_message,
         }
+
+    def get_supported_tokens(self) -> list[str]:
+        """獲取支援的代幣列表"""
+        return SUPPORTED_TOKENS.copy()
+
+    def get_token_rate(self, token: str) -> float:
+        """獲取代幣對美元匯率"""
+        return TOKEN_USD_RATES.get(token, 1.0)
