@@ -1,12 +1,10 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import dynamic from 'next/dynamic';
+import { useMemo, useState } from 'react';
+import Map, { Marker, NavigationControl } from 'react-map-gl/maplibre';
+import maplibregl from 'maplibre-gl';
 import type { CrisisPoint } from '@/lib/mockData';
-import { getColorByType, getLabelSizeByType, getDotRadiusByType } from '../utils/globeUtils';
-
-// Dynamically import Globe to avoid SSR issues
-const Globe = dynamic(() => import('react-globe.gl'), { ssr: false });
+import { getColorByType, getLabelSizeByType } from '../utils/globeUtils';
 
 export interface LivingGlobeProps {
     data: CrisisPoint[];
@@ -14,52 +12,69 @@ export interface LivingGlobeProps {
 }
 
 export default function LivingGlobe({ data, onPointClick }: LivingGlobeProps) {
-    const globeEl = useRef<any>(undefined);
-    const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+    const [viewState, setViewState] = useState({
+        longitude: 0,
+        latitude: 20,
+        zoom: 1.5
+    });
 
-    useEffect(() => {
-        setDimensions({
-            width: window.innerWidth,
-            height: window.innerHeight
-        });
+    const markers = useMemo(() => data.map((point, index) => {
+        const size = getLabelSizeByType(point.type) * 20; // Scale base size suitable for markers
+        const color = getColorByType(point.type);
 
-        const handleResize = () => {
-            setDimensions({
-                width: window.innerWidth,
-                height: window.innerHeight
-            });
-        };
-
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, []);
+        return (
+            <Marker
+                key={`marker-${index}`}
+                longitude={point.lng}
+                latitude={point.lat}
+                anchor="center"
+                onClick={(e) => {
+                    e.originalEvent.stopPropagation();
+                    onPointClick(point);
+                }}
+            >
+                <div
+                    style={{
+                        width: `${size}px`,
+                        height: `${size}px`,
+                        backgroundColor: color,
+                        borderRadius: '50%',
+                        cursor: 'pointer',
+                        boxShadow: `0 0 ${point.intensity ? point.intensity * 20 : 10}px ${color}`,
+                        animation: point.type === 'crisis' ? 'pulse 2s infinite' : 'none',
+                    }}
+                    title={point.label}
+                />
+            </Marker>
+        );
+    }), [data, onPointClick]);
 
     return (
         <div className="fixed inset-0 z-0 bg-black">
-            <Globe
-                ref={globeEl}
-                width={dimensions.width}
-                height={dimensions.height}
-                globeImageUrl="//unpkg.com/three-globe/example/img/earth-night.jpg"
-                backgroundImageUrl="//unpkg.com/three-globe/example/img/night-sky.png"
-
-                // Data Visualization - now uses injected data
-                labelsData={data}
-                labelLat={(d: any) => d.lat}
-                labelLng={(d: any) => d.lng}
-                labelText={(d: any) => d.label}
-                labelSize={(d: any) => getLabelSizeByType(d.type)}
-                labelDotRadius={(d: any) => getDotRadiusByType(d.type)}
-                labelColor={(d: any) => getColorByType(d.type)}
-                labelResolution={2}
-
-                // Interaction
-                onLabelClick={(d: any) => onPointClick(d)}
-
-                // Atmosphere
-                atmosphereColor="#3a228a"
-                atmosphereAltitude={0.1}
-            />
+            <style jsx global>{`
+                @keyframes pulse {
+                    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 60, 60, 0.7); }
+                    70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(255, 60, 60, 0); }
+                    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 60, 60, 0); }
+                }
+            `}</style>
+            <Map
+                {...viewState}
+                onMove={evt => setViewState(evt.viewState)}
+                style={{ width: '100%', height: '100%' }}
+                mapStyle="https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
+                projection="globe"
+                fog={{
+                    range: [0.5, 10],
+                    color: '#3a228a', // Same atmosphere color as before
+                    'horizon-blend': 0.1,
+                    // Note: 'star-intensity' might not be standard in all maplibre versions but let's try
+                }}
+                terrain={{ source: 'raster-dem', exaggeration: 1.5 }}
+            >
+                {markers}
+                <NavigationControl position="bottom-right" />
+            </Map>
         </div>
     );
 }
