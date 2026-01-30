@@ -13,16 +13,20 @@ vi.mock('framer-motion', () => ({
 
 describe('Overlay Component', () => {
     const mockCrisisPoint: CrisisPoint = {
+        id: 'c1',
         lat: 37.0902,
         lng: 37.1611,
+        intensity: 0.8,
         label: 'Test Earthquake',
         type: 'crisis',
         description: 'Test description for earthquake',
     };
 
     const mockVoicePoint: CrisisPoint = {
+        id: 'v1',
         lat: 37.15,
         lng: 37.2,
+        intensity: 0.5,
         label: 'Test Voice',
         type: 'voice',
         description: 'Test voice description',

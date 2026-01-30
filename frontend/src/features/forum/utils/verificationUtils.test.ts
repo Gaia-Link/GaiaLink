@@ -6,8 +6,10 @@ describe('verificationUtils', () => {
     describe('getVerificationStatus', () => {
         it('returns verified status for crisis type with 98% confidence', () => {
             const crisisPoint: CrisisPoint = {
+                id: 'c1',
                 lat: 37.0902,
                 lng: 37.1611,
+                intensity: 0.9,
                 label: 'Earthquake',
                 type: 'crisis',
             };
@@ -21,8 +23,10 @@ describe('verificationUtils', () => {
 
         it('returns verified status for node type with 100% confidence', () => {
             const nodePoint: CrisisPoint = {
+                id: 'n1',
                 lat: 48.8566,
                 lng: 2.3522,
+                intensity: 1,
                 label: 'Red Cross HQ',
                 type: 'node',
             };
@@ -36,8 +40,10 @@ describe('verificationUtils', () => {
 
         it('returns unverified status for voice type', () => {
             const voicePoint: CrisisPoint = {
+                id: 'v1',
                 lat: 37.15,
                 lng: 37.2,
+                intensity: 0.5,
                 label: 'Supplies Needed',
                 type: 'voice',
             };

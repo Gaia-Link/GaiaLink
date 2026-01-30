@@ -1,7 +1,9 @@
 'use client';
 
 import { useBlockNumber, useAccount, useBalance } from 'wagmi';
-import { sepolia } from 'wagmi/chains';
+import { sepolia } from 'viem/chains';
+
+import { formatUnits } from 'viem';
 
 export default function RpcTester() {
     const { address } = useAccount();
@@ -45,7 +47,7 @@ export default function RpcTester() {
                             <span className="text-green-400 font-bold text-lg block">
                                 {balance ? `${balance.value.toString()} wei` : 'N/A'}
                             </span>
-                            {balance && <span className="text-gray-400 font-mono text-[10px]">{balance.formatted} {balance.symbol}</span>}
+                            {balance && <span className="text-gray-400 font-mono text-[10px]">{formatUnits(balance.value, balance.decimals)} {balance.symbol}</span>}
                         </div>
                     )}
                 </div>
