@@ -2,41 +2,37 @@
 
 本文檔定義前端 (Frontend) 與 SpoonOS Agent (Python Backend) 之間的數據交互標準。
 
-## 1. 前端發送給 Agent 的數據 (Request)
+## 1. 數據源架構 (Agent Data Source - Mock DB)
 
-前端透過 API (如 POST `/api/agent/chat`) 發送用戶意圖與當前上下文。
+為了簡化前後端傳輸並增加 Agent 的靈活性，我們在 Agent 端維護一個輕量級的 JSON 數據庫 (`data.json` 或 `CRISIS_DB`)。
 
-```json
-{
-  "message": "用戶輸入的自然語言 (例如: '這看起來很嚴重，我想捐款')",
-  "context": {
-    "selected_point": {
-      "id": "turkey_quake_2023",
-      "lat": 37.166,
-      "lng": 38.795,
-      "label": "Turkey-Syria Earthquake",
-      "type": "crisis",
-      "description": "7.8 Magnitude Earthquake..."
-    },
-    "user_wallet_address": "0x123...abc", // 可選，若已連接錢包
-    "current_view": {
-        "lat": 37.166,
-        "lng": 38.795,
-        "zoom": 5
-    }
-  }
-}
-```
-
-### 字段說明
-*   **message**: 用戶在膠囊 (Capsule) 輸入的文字或語音轉文字結果。
-*   **context**: 讓 Agent 理解用戶 "看在哪裡"。
-    *   `selected_point`: 當前點選的地球危機點（這是 `VerifyCrisisTool` 的核心輸入）。
-    *   `user_wallet_address`: 用於後續生成支付交易。
+**優勢**：
+1.  **前端極簡化**：只需傳送 `prompt` 和可選的 `id`，不需要傳送整坨資料。
+2.  **Agent 自主性**：Agent 可以根據 Prompt 搜索整個資料庫（例如："哪裡有火災？"），而不依賴前端選中特定點。
 
 ---
 
-## 2. Agent 執行的邏輯 (Agent Logic)
+## 2. 前端發送給 Agent 的數據 (Request)
+
+API Endpoint: `POST /api/agent/chat`
+
+為了讓 Agent 介面更通用，前端只需發送 **單一 prompt 字串**。
+如果是 "Context Mode" (例如用戶點選了土耳其)，前端可以自動將該資訊附加在 Prompt 中 (例如: "關於 Turkey-Syria Earthquake, ...")，或者完全依賴用戶在對話中提及。
+
+```json
+{
+  "message": "這裡的情況如何？" // 若有選中點，前端可預處理為 "Tell me about Turkey-Syria Earthquake situations"
+}
+```
+
+### Agent 處理邏輯
+*   **NLU 解析**: Agent 使用 LLM 解析 `message`。
+    *   若 Message 包含具體地點/事件 (e.g., "Turkey Earthquake") -> Agent 查詢 DB 中的該事件。
+    *   若 Message 為模糊詢問 (e.g., "哪裡最嚴重？") -> Agent 進行全局檢索 (Global Search)。
+
+---
+
+## 3. Agent 執行的邏輯 (Agent Logic)
 
 Agent 收到請求後，會根據 `system_prompt` 分析意圖並調用工具：
 
@@ -173,14 +169,47 @@ Agent 回傳構造好的交易 Payload，前端直接喚起簽名：
 
 ---
 
-## 總結流程
+---
 
-1.  **用戶** 按下 Space -> 輸入 "Help Turkey"。
-2.  **前端** 發送 `message: "Help Turkey"`, `context: {Turkey Point}`。
-3.  **Agent** 調用 `VerifyCrisisTool` -> 確認真實性。
-4.  **Agent** 回傳 `ui_hints.mode = "DECISION"` 和 `recommendation.action = "PROCEED"`。
-5.  **前端** 膠囊變形為大卡片，顯示 "Direct Donate" 和 "Yield Donate" 按鈕。
-6.  **用戶** 點擊 "Yield Donate"。
-7.  **前端** 請求 Agent 生成 Yield Vault 的交易數據。
-8.  **Agent** 回傳 `transaction_payload`。
-9.  **前端** 喚起 MetaMask / RainbowKit 讓用戶簽名。
+## 5. 智能合約架構 (Smart Contract Architecture)
+
+為了兼顧安全性與無需許可 (Permissionless) 的參與，GaiaLink 設計了雙層 Vault 機制。Agent 需根據此邏輯引導用戶。
+
+### Layer 1: 機構主池 (Institution Vaults)
+*   **權限**：僅限白名單機構 (Whitelisted Orgs) 創建。
+*   **功能**：資金的最終接收方。
+*   **類型**：支援 `Direct` (直接) 與 `Yield` (生息) 兩種模式。
+
+### Layer 2: 用戶提案池 (User Proposals)
+*   **權限**：無需許可 (Permissionless)，任何人都可創建。
+*   **邏輯**：
+    1.  用戶發起提案 (e.g., "為加薩建立醫療補給專案")，綁定一個 Layer 1 的機構地址。
+    2.  設定 **募資目標 (Target Amount)**。
+    3.  **達標 (Target Met)**：資金解鎖，自動流入 Layer 1 機構錢包。
+    4.  **未達標 (Failed)**：資金退回原捐贈者 (Refund)。
+*   **Agent 角色**：協助用戶檢查是否有現成提案，或協助發起新提案。
+
+### 新增 Agent 意圖：創建提案 (CREATE_PROPOSAL)
+
+當用戶說："我想發起一個為土耳其募款的活動"：
+
+**Request:**
+前端只需發送自然語言，Agent 負責從對話中提取 "土耳其" (Target Region) 和 "5000 USDC" (Amount)。
+
+```json
+{
+  "message": "我想發起一個為土耳其賑災的提案，目標 5000 USDC"
+}
+```
+
+**Response (Agent):**
+```json
+{
+  "intent": "CREATE_PROPOSAL",
+  "transaction_payload": {
+    "to": "0xFactoryAddress...",
+    "data": "0xCreateProposal(TurkeyRegion, 5000, USDC)",
+    "description": "即將創建 'Turkey Relief Proposal'，目標 5000 USDC。若未達標將退款。"
+  }
+}
+```
