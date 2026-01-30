@@ -1,0 +1,14 @@
+# Foundry
+out
+cache
+broadcast
+dist
+out-optimized
+artifacts
+verify
+
+# Environment variables
+.env
+
+# DS_Store
+.DS_Store
