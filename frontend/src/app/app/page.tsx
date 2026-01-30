@@ -1,17 +1,46 @@
 'use client';
 
-import { useState } from 'react';
-import LivingGlobe from '@/features/globe/components/LivingGlobe';
+import { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import Overlay from '@/features/forum/components/Overlay';
+import SpoonOSInterface from '@/features/spoon-os/components/SpoonOSInterface';
+import DonationModal from '@/features/donation/components/DonationModal';
+
+const LivingGlobe = dynamic(() => import('@/features/globe/components/LivingGlobe'), {
+  ssr: false,
+  loading: () => <div className="fixed inset-0 z-0 bg-black" />
+});
 import { CrisisPoint, MOCK_DATA } from '@/lib/mockData';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 
 export default function Home() {
   const [selectedPoint, setSelectedPoint] = useState<CrisisPoint | null>(null);
+  const [isSpoonActive, setIsSpoonActive] = useState(false); // Controls dimming
+  const [triggerSpoon, setTriggerSpoon] = useState(false);   // Signal to wake up spoon
+  const [isDonationOpen, setIsDonationOpen] = useState(false);
+
+  // Toggle SpoonOS with Spacebar
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Prevent triggering if typing in an input
+      if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'TEXTAREA') return;
+
+      if (e.code === 'Space') {
+        e.preventDefault();
+        if (!e.repeat) {
+          setTriggerSpoon(true); // Signal to wake
+          setTimeout(() => setTriggerSpoon(false), 100); // Reset signal
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const handleDonate = (point: CrisisPoint) => {
-    // TODO: Implement donation logic with SpoonOS Agent
-    console.log('Donating to:', point.label);
+    setSelectedPoint(point);
+    setIsDonationOpen(true);
   };
 
   const handleDiscuss = (point: CrisisPoint) => {
@@ -19,13 +48,23 @@ export default function Home() {
     console.log('Discussing:', point.label);
   };
 
+  const handleSpoonAction = (action: string, data?: any) => {
+    if (action === 'OPEN_DONATION') {
+      // setIsSpoonActive(false); // Let component handle its own state
+      setIsDonationOpen(true);
+      if (data) setSelectedPoint(data);
+    }
+  };
+
   return (
-    <main className="relative h-screen w-full overflow-hidden">
-      {/* 1. The Living Globe (Background Layer) - data is now explicitly passed */}
-      <LivingGlobe data={MOCK_DATA} onPointClick={setSelectedPoint} />
+    <main className="relative h-screen w-full overflow-hidden bg-black">
+      {/* 1. The Living Globe (Background Layer) */}
+      <div className={`absolute inset-0 z-0 transition-all duration-700 ${isSpoonActive ? 'scale-95 opacity-50 blur-sm rounded-3xl overflow-hidden' : 'scale-100 opacity-100 blur-0'}`}>
+        <LivingGlobe data={MOCK_DATA} onPointClick={setSelectedPoint} />
+      </div>
 
       {/* 2. UI Overlay Layer (Foreground) */}
-      <div className="absolute top-0 left-0 w-full p-6 flex justify-between items-start z-10 pointer-events-none">
+      <div className={`absolute top-0 left-0 w-full p-6 flex justify-between items-start z-10 pointer-events-none transition-opacity duration-500 ${isSpoonActive ? 'opacity-20' : 'opacity-100'}`}>
         {/* Brand / Title */}
         <div className="pointer-events-auto">
           <h1 className="text-4xl font-black text-white tracking-tighter drop-shadow-lg">
@@ -43,7 +82,7 @@ export default function Home() {
         </div>
       </div>
 
-      {/* 3. Interaction Layer (Geo-Forum) */}
+      {/* 3. Interaction Components */}
       <Overlay
         point={selectedPoint}
         onClose={() => setSelectedPoint(null)}
@@ -51,9 +90,23 @@ export default function Home() {
         onDiscuss={handleDiscuss}
       />
 
+      <SpoonOSInterface
+        isOpen={triggerSpoon}
+        onClose={() => setTriggerSpoon(false)}
+        selectedPoint={selectedPoint}
+        onAction={handleSpoonAction}
+        onStateChange={setIsSpoonActive}
+      />
+
+      <DonationModal
+        isOpen={isDonationOpen}
+        onClose={() => setIsDonationOpen(false)}
+        point={selectedPoint}
+      />
+
       {/* Instructions / Footer */}
-      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 text-white/50 text-xs pointer-events-none z-0">
-        Click on Red Zones to view requests. Hold Space to speak to SpoonOS.
+      <div className={`absolute bottom-8 left-1/2 -translate-x-1/2 text-white/50 text-xs pointer-events-none z-0 transition-opacity ${isSpoonActive ? 'opacity-0' : 'opacity-100'}`}>
+        Click on Red Zones to view requests. Press <span className="font-bold text-white">SPACE</span> to speak to SpoonOS.
       </div>
     </main>
   );
