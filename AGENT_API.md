@@ -40,6 +40,103 @@ API Endpoint: `POST /api/agent/chat`
 
 ---
 
+# Current Mock Implementation
+
+The frontend currently uses a **mock agent service** (`frontend/src/features/spoon-os/services/agentService.ts`) for development and testing.
+
+## Mock Response Patterns
+
+### Pattern 1: Crisis Verification (Turkey)
+**Trigger**: User input contains "turkey" or "quake"
+
+**Response**:
+```typescript
+{
+  message: "I verified the Turkey-Syria Earthquake data...",
+  action_taken: "verify_crisis",
+  recommendation: { action: "PROCEED", confidence: 95, ... },
+  ui_hints: {
+    mode: "DECISION",
+    display_data: { title: "Turkey-Syria Earthquake", badge_text: "Verified Crisis", ... },
+    actions: [
+      { label: "Direct Donate (USDC)", type: "donate_direct", icon: "coins" },
+      { label: "Yield Donate (4.5% APY)", type: "donate_yield", icon: "trending_up" }
+    ]
+  }
+}
+```
+
+### Pattern 2: Multi-Step Proposal Creation (Morocco)
+
+#### Step 1: Ask Vault Type
+**Trigger**: Input contains "morocco" or "proposal"
+
+**Response**:
+```typescript
+{
+  message: "I see no active vaults for Morocco. To create a new Proposal, please select the Vault implementation type.",
+  action_taken: "ask_vault_type",
+  ui_hints: {
+    mode: "DECISION",
+    actions: [
+      { label: "Yield Vault (Aave V3 Strategy)", type: "select_vault_yield", icon: "trending_up" },
+      { label: "Direct Vault (Standard)", type: "select_vault_direct", icon: "wallet" }
+    ]
+  }
+}
+```
+
+#### Step 2: Ready to Sign
+**Trigger**: Input contains "yield" or "direct"
+
+**Response**:
+```typescript
+{
+  message: "I've prepared the transaction for a Yield Vault (4.5% APY). Please review and sign to deploy the Proposal.",
+  action_taken: "create_proposal",
+  ui_hints: {
+    mode: "SIGNATURE",
+    actions: [
+      { label: "Sign & Deploy", type: "sign_proposal", icon: "pen-tool" }
+    ]
+  },
+  transaction_payload: {
+    to: "0xFactory...",
+    data: "0xCreateProposal(Morocco, Yield)..."
+  }
+}
+```
+
+## Frontend Action Handling
+
+The `page.tsx` component handles actions via `handleSpoonAction`:
+
+```typescript
+const handleSpoonAction = (action: string, data?: any) => {
+  if (action === 'sign_proposal') {
+    // Mock: Show alert simulating transaction signature
+    alert('✅ Transaction signed! (Mock)');
+  }
+  else if (action === 'donate_direct' || action === 'donate_yield') {
+    // Open donation modal
+    setIsDonationOpen(true);
+  }
+};
+```
+
+## RPC Configuration
+
+**Sepolia Testnet**:
+- Endpoint: `https://1rpc.io/sepolia`
+- Transport config: `{ batch: false }` (to avoid multicall issues with public RPCs)
+
+**WalletConnect**:
+- Project ID: Configured via environment variable or hardcoded
+- Supported networks: Mainnet, Polygon, Optimism, Arbitrum, Base, Sepolia
+
+---
+
+# Future: Production Agent Integration
 ## 3. Agent 執行的邏輯 (Agent Logic)
 
 Agent 收到請求後，會根據 `system_prompt` 分析意圖並調用工具：

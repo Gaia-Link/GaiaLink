@@ -8,11 +8,12 @@ import DonationModal from '@/features/donation/components/DonationModal';
 import LivingGlobe from '@/features/globe/components/LivingGlobe';
 import { CrisisPoint, MOCK_DATA } from '@/lib/mockData';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
+import RpcTester from '@/features/debug/RpcTester';
 
 export default function Home() {
   const [selectedPoint, setSelectedPoint] = useState<CrisisPoint | null>(null);
   const [isSpoonActive, setIsSpoonActive] = useState(false); // Controls dimming
-  const [triggerSpoon, setTriggerSpoon] = useState(false);   // Signal to wake up spoon
+  const [isSpoonOpen, setIsSpoonOpen] = useState(false);     // Controls visibility
   const [isDonationOpen, setIsDonationOpen] = useState(false);
   const [data, setData] = useState<CrisisPoint[]>([]);
 
@@ -24,10 +25,7 @@ export default function Home() {
 
       if (e.code === 'Space') {
         e.preventDefault();
-        if (!e.repeat) {
-          setTriggerSpoon(true); // Signal to wake
-          setTimeout(() => setTriggerSpoon(false), 100); // Reset signal
-        }
+        setIsSpoonOpen(prev => !prev);
       }
     };
 
@@ -75,8 +73,19 @@ export default function Home() {
   };
 
   const handleSpoonAction = (action: string, data?: any) => {
+    console.log('SpoonOS Action:', action, data);
+
     if (action === 'OPEN_DONATION') {
-      // setIsSpoonActive(false); // Let component handle its own state
+      setIsDonationOpen(true);
+      if (data) setSelectedPoint(data);
+    }
+    else if (action === 'sign_proposal') {
+      // Mock: Simulate signing a transaction to create a proposal
+      console.log('📝 Signing proposal transaction...', data);
+      alert('✅ Transaction signed! (Mock)\n\nIn production, this would:\n1. Prompt your wallet to sign\n2. Deploy a new vault proposal on-chain\n3. Show transaction confirmation');
+    }
+    else if (action === 'donate_direct' || action === 'donate_yield') {
+      // Open donation modal with the selected crisis point
       setIsDonationOpen(true);
       if (data) setSelectedPoint(data);
     }
@@ -104,8 +113,10 @@ export default function Home() {
 
         {/* Wallet Connect */}
         <div className="pointer-events-auto">
-          <ConnectButton />
+          <ConnectButton showBalance={false} />
         </div>
+
+        <RpcTester />
       </div>
 
       {/* 3. Interaction Components */}
@@ -117,8 +128,8 @@ export default function Home() {
       />
 
       <SpoonOSInterface
-        isOpen={triggerSpoon}
-        onClose={() => setTriggerSpoon(false)}
+        isOpen={isSpoonOpen}
+        onClose={() => setIsSpoonOpen(false)}
         selectedPoint={selectedPoint}
         onAction={handleSpoonAction}
         onStateChange={setIsSpoonActive}

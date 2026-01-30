@@ -6,13 +6,14 @@ import {
     getDefaultConfig,
     RainbowKitProvider,
 } from '@rainbow-me/rainbowkit';
-import { WagmiProvider, cookieStorage, createStorage } from 'wagmi';
+import { WagmiProvider, cookieStorage, createStorage, http } from 'wagmi';
 import {
     mainnet,
     polygon,
     optimism,
     arbitrum,
     base,
+    sepolia,
 } from 'wagmi/chains';
 import {
     QueryClientProvider,
@@ -21,12 +22,20 @@ import {
 
 const config = getDefaultConfig({
     appName: 'Gaia Link',
-    projectId: 'YOUR_PROJECT_ID',
-    chains: [mainnet, polygon, optimism, arbitrum, base],
+    projectId: '76d95ee5ce69de7321d0749e0b87c2b8',
+    chains: [mainnet, polygon, optimism, arbitrum, base, sepolia],
     ssr: true,
     storage: createStorage({
         storage: cookieStorage,
     }),
+    transports: {
+        [mainnet.id]: http(),
+        [sepolia.id]: http('https://1rpc.io/sepolia', { batch: false }),
+        [polygon.id]: http(),
+        [optimism.id]: http(),
+        [arbitrum.id]: http(),
+        [base.id]: http(),
+    },
 });
 
 const queryClient = new QueryClient();
