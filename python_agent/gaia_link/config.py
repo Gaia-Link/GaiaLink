@@ -4,7 +4,6 @@ Gaia Link 配置管理
 使用 pydantic-settings 管理環境變數和配置
 """
 
-import os
 from enum import Enum
 from functools import lru_cache
 from typing import Optional
@@ -24,6 +23,12 @@ class PolymarketMode(str, Enum):
     """Polymarket 服務模式"""
     MOCK = "mock"
     REAL = "real"
+
+
+class SentimentMode(str, Enum):
+    """Sentiment 服務模式"""
+    MOCK = "mock"
+    HUGGINGFACE = "huggingface"
 
 
 class Settings(BaseSettings):
@@ -72,6 +77,22 @@ class Settings(BaseSettings):
         description="Polymarket API 請求超時（秒）",
     )
 
+    # Sentiment 配置
+    sentiment_mode: SentimentMode = Field(
+        default=SentimentMode.MOCK,
+        description="Sentiment 服務模式 (mock, huggingface)",
+    )
+
+    huggingface_model: str = Field(
+        default="distilbert-base-uncased-finetuned-sst-2-english",
+        description="HuggingFace 模型名稱",
+    )
+
+    huggingface_device: str = Field(
+        default="cpu",
+        description="HuggingFace 執行設備 (cpu, cuda)",
+    )
+
     # 日誌配置
     log_level: str = Field(
         default="INFO",
@@ -113,6 +134,14 @@ class Settings(BaseSettings):
     def is_polymarket_real(self) -> bool:
         """檢查是否為 Polymarket Real 模式"""
         return self.polymarket_mode == PolymarketMode.REAL
+
+    def is_sentiment_mock(self) -> bool:
+        """檢查是否為 Sentiment Mock 模式"""
+        return self.sentiment_mode == SentimentMode.MOCK
+
+    def is_sentiment_huggingface(self) -> bool:
+        """檢查是否為 Sentiment HuggingFace 模式"""
+        return self.sentiment_mode == SentimentMode.HUGGINGFACE
 
 
 @lru_cache
@@ -177,3 +206,68 @@ def get_polymarket_service():
         raise NotImplementedError(
             f"Polymarket mode {settings.polymarket_mode} is not supported"
         )
+
+
+def get_sentiment_service():
+    """
+    根據配置獲取對應的 Sentiment 服務
+
+    Returns:
+        SentimentService: Sentiment 服務實例
+    """
+    settings = get_settings()
+
+    if settings.is_sentiment_mock():
+        from gaia_link.services.sentiment import MockSentimentService
+
+        return MockSentimentService()
+
+    elif settings.is_sentiment_huggingface():
+        from gaia_link.services.sentiment import get_huggingface_sentiment_service
+
+        return get_huggingface_sentiment_service(
+            model_name=settings.huggingface_model,
+            device=settings.huggingface_device,
+        )
+
+    else:
+        raise NotImplementedError(
+            f"Sentiment mode {settings.sentiment_mode} is not supported"
+        )
+
+
+def get_rate_limiter():
+    """
+    根據配置獲取 Rate Limiter 服務
+
+    Returns:
+        RateLimiter: Rate Limiter 服務實例，如果未啟用則返回 None
+    """
+    settings = get_settings()
+
+    if not settings.rate_limit_enabled:
+        return None
+
+    from gaia_link.services.ratelimit import InMemoryRateLimiter, RateLimitConfig
+
+    config = RateLimitConfig(
+        requests_per_minute=settings.rate_limit_requests_per_minute,
+    )
+    return InMemoryRateLimiter(config=config)
+
+
+def get_audit_logger():
+    """
+    根據配置獲取 Audit Logger 服務
+
+    Returns:
+        AuditLogger: Audit Logger 服務實例，如果未啟用則返回 None
+    """
+    settings = get_settings()
+
+    if not settings.audit_logging_enabled:
+        return None
+
+    from gaia_link.services.audit import InMemoryAuditLogger
+
+    return InMemoryAuditLogger()

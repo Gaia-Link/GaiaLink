@@ -74,9 +74,10 @@ Gaia Link 是一個基於 3D 地球的**「人道救援協作網絡」**。我�
 | 項目 | 技術 |
 |------|------|
 | 語言 | Python 3.10+ |
-| Agent 框架 | SpoonOS SDK (`spoon-ai`) - React Agent |
+| Agent 框架 | SpoonOS SDK (`spoon-ai-sdk>=0.3.6`) - React Agent |
 | 數據驗證 | Pydantic |
-| 測試 | pytest（93%+ 覆蓋率，134 個測試） |
+| 配置管理 | pydantic-settings |
+| 測試 | pytest（91.42% 覆蓋率，241 個測試） |
 
 ---
 
@@ -92,15 +93,25 @@ python_agent/
 │   │   ├── base.py                  # BlockchainService 抽象基類
 │   │   ├── mock_blockchain.py       # Mock 區塊鏈實作
 │   │   ├── sepolia_blockchain.py    # Sepolia 測試網實作
-│   │   └── polymarket/              # Polymarket 服務
-│   │       ├── base.py              # PolymarketService 抽象基類
-│   │       ├── mock_polymarket.py   # Mock 實作
-│   │       └── real_polymarket.py   # 真實 API 實作
+│   │   ├── polymarket/              # Polymarket 服務
+│   │   │   ├── base.py              # PolymarketService 抽象基類
+│   │   │   ├── mock_polymarket.py   # Mock 實作
+│   │   │   └── real_polymarket.py   # Gamma API 實作
+│   │   ├── sentiment/               # Sentiment 服務
+│   │   │   ├── base.py              # SentimentService 抽象基類
+│   │   │   ├── mock_sentiment.py    # Mock 實作（規則基礎）
+│   │   │   └── huggingface_sentiment.py  # HuggingFace ML 實作
+│   │   ├── ratelimit/               # Rate Limiting 服務
+│   │   │   ├── base.py              # RateLimiter 抽象基類
+│   │   │   └── memory_ratelimit.py  # Token Bucket 實作
+│   │   └── audit/                   # Audit Logging 服務
+│   │       ├── base.py              # AuditLogger 抽象基類
+│   │       └── memory_audit.py      # InMemory 實作
 │   └── tools/
 │       ├── verify_crisis.py         # 危機驗證工具
 │       ├── analyze_sentiment.py     # 情感分析工具
 │       └── execute_donation.py      # 捐款執行工具
-├── tests/                 # 測試檔案
+├── tests/                 # 測試檔案 (241 tests)
 ├── main.py                # Demo 入口
 └── pyproject.toml         # 專案配置
 ```
@@ -141,6 +152,18 @@ WALLET_PRIVATE_KEY=...            # Sepolia 模式需要
 POLYMARKET_MODE=mock              # mock | real
 POLYMARKET_API_URL=https://gamma-api.polymarket.com
 POLYMARKET_TIMEOUT=30
+
+# Sentiment 服務 (默認: mock)
+SENTIMENT_MODE=mock               # mock | huggingface
+HUGGINGFACE_MODEL=distilbert-base-uncased-finetuned-sst-2-english
+HUGGINGFACE_DEVICE=cpu            # cpu | cuda
+
+# Rate Limiting (默認: 關閉)
+RATE_LIMIT_ENABLED=false          # true | false
+RATE_LIMIT_REQUESTS_PER_MINUTE=60
+
+# Audit Logging (默認: 關閉)
+AUDIT_LOGGING_ENABLED=false       # true | false
 ```
 
 ---
@@ -253,23 +276,37 @@ result = await tool.execute(
 - RealPolymarketService（gamma-api 整合）
 - VerifyCrisisTool 重構
 
-### Phase 3: ML 情感分析模型 - PENDING
+### Phase 3: ML 情感分析模型 - DONE
 
-- Hugging Face Transformers 整合
-- 本地推理 / API 模式切換
+- SentimentService 抽象基類
+- MockSentimentService（規則基礎分析）
+- HuggingFaceSentimentService（transformers 整合）
+- AnalyzeSentimentTool 重構
 
-### Phase 4: Rate Limiting + Audit Logging - PENDING
+### Phase 4: Rate Limiting + Audit Logging - DONE
 
-- 請求限流機制
-- 審計日誌系統
+- RateLimiter 抽象基類（Token Bucket 算法）
+- InMemoryRateLimiter（內存實作）
+- AuditLogger 抽象基類（結構化日誌）
+- InMemoryAuditLogger（內存實作）
+
+---
+
+## 服務層 Mock vs Real
+
+| 服務 | Mock 模式 | Real 模式 | 切換變數 |
+|------|-----------|-----------|----------|
+| Blockchain | MockBlockchainService | SepoliaBlockchainService | `BLOCKCHAIN_NETWORK` |
+| Polymarket | MockPolymarketService | RealPolymarketService | `POLYMARKET_MODE` |
+| Sentiment | MockSentimentService | HuggingFaceSentimentService | `SENTIMENT_MODE` |
 
 ---
 
 ## 測試結果
 
 ```
-============================= 134 passed ==============================
-Coverage: 93.07%
+============================= 241 passed ==============================
+Coverage: 91.42%
 ```
 
 ---

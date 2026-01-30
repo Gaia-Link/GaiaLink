@@ -1,12 +1,13 @@
 """
 analyze_sentiment 工具單元測試
 
-TDD RED Phase: 先撰寫測試，確保測試失敗
+測試 AnalyzeSentimentTool 與 Sentiment 服務層整合
 """
 
 import pytest
 
 from gaia_link.tools.analyze_sentiment import AnalyzeSentimentTool
+from gaia_link.services.sentiment import MockSentimentService
 
 
 class TestAnalyzeSentimentTool:
@@ -128,3 +129,59 @@ class TestAnalyzeSentimentTool:
 
         assert param["type"] == "function"
         assert param["function"]["name"] == "analyze_sentiment"
+
+
+class TestAnalyzeSentimentToolDependencyInjection:
+    """AnalyzeSentimentTool 依賴注入測試"""
+
+    @pytest.fixture
+    def mock_service(self):
+        """建立 Mock 服務實例"""
+        return MockSentimentService()
+
+    @pytest.fixture
+    def tool_with_service(self, mock_service):
+        """建立帶有注入服務的工具實例"""
+        return AnalyzeSentimentTool(sentiment_service=mock_service)
+
+    def test_can_inject_service(self, mock_service):
+        """應能注入 Sentiment 服務"""
+        tool = AnalyzeSentimentTool(sentiment_service=mock_service)
+        assert tool._sentiment_service is mock_service
+
+    def test_default_service_is_none(self):
+        """默認服務應為 None"""
+        tool = AnalyzeSentimentTool()
+        assert tool._sentiment_service is None
+
+    @pytest.mark.asyncio
+    async def test_execute_uses_injected_service(self, tool_with_service):
+        """execute 應使用注入的服務"""
+        result = await tool_with_service.execute(text="Help! Emergency!")
+
+        assert result["urgency_level"] in ["CRITICAL", "HIGH"]
+        assert result["authenticity_score"] > 0
+
+    @pytest.mark.asyncio
+    async def test_execute_urgent_text_verified(self, tool_with_service):
+        """緊急文本應返回正確結果"""
+        result = await tool_with_service.execute(
+            text="Fire! People trapped! Need rescue immediately!"
+        )
+
+        assert result["urgency_level"] == "CRITICAL"
+
+    @pytest.mark.asyncio
+    async def test_execute_with_context_injection(self, tool_with_service):
+        """帶上下文的分析應正常工作"""
+        result = await tool_with_service.execute(
+            text="We need medical supplies urgently",
+            context={
+                "post_id": "post_789",
+                "author_history": 100,
+                "account_age_days": 500,
+            },
+        )
+
+        # 有歷史紀錄的帳號應有更高的可信度
+        assert result["authenticity_score"] >= 60

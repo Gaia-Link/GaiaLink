@@ -25,10 +25,12 @@ def reset_settings_cache():
     # 保存原始環境變數
     original_blockchain = os.environ.get("BLOCKCHAIN_NETWORK")
     original_polymarket = os.environ.get("POLYMARKET_MODE")
+    original_sentiment = os.environ.get("SENTIMENT_MODE")
 
     # 設置默認環境變數為 mock
     os.environ["BLOCKCHAIN_NETWORK"] = "mock"
     os.environ["POLYMARKET_MODE"] = "mock"
+    os.environ["SENTIMENT_MODE"] = "mock"
 
     # 清除緩存
     from gaia_link.config import get_settings
@@ -47,6 +49,11 @@ def reset_settings_cache():
         os.environ["POLYMARKET_MODE"] = original_polymarket
     elif "POLYMARKET_MODE" in os.environ:
         del os.environ["POLYMARKET_MODE"]
+
+    if original_sentiment is not None:
+        os.environ["SENTIMENT_MODE"] = original_sentiment
+    elif "SENTIMENT_MODE" in os.environ:
+        del os.environ["SENTIMENT_MODE"]
 
     # 清除緩存
     get_settings.cache_clear()

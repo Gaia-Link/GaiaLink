@@ -16,6 +16,36 @@ from gaia_link.services.polymarket import (
     MockPolymarketService,
 )
 
+# Sentiment 服務
+from gaia_link.services.sentiment import (
+    SentimentService,
+    SentimentResult,
+    AnalysisContext,
+    UrgencyLevel,
+    MockSentimentService,
+)
+
+# Rate Limiting 服務
+from gaia_link.services.ratelimit import (
+    RateLimiter,
+    RateLimitConfig,
+    RateLimitResult,
+    RateLimitStatus,
+    InMemoryRateLimiter,
+    get_in_memory_rate_limiter,
+)
+
+# Audit Logging 服務
+from gaia_link.services.audit import (
+    AuditLogger,
+    AuditEntry,
+    AuditEventType,
+    AuditLevel,
+    AuditQuery,
+    InMemoryAuditLogger,
+    get_in_memory_audit_logger,
+)
+
 
 # SepoliaBlockchainService 需要 web3 依賴，延遲導入
 def get_sepolia_service(*args, **kwargs):
@@ -35,6 +65,16 @@ def get_real_polymarket_service(*args, **kwargs):
     return _get_real(*args, **kwargs)
 
 
+# HuggingFaceSentimentService 需要 transformers，延遲導入
+def get_huggingface_sentiment_service(*args, **kwargs):
+    """工廠函數：創建 HuggingFaceSentimentService 實例"""
+    from gaia_link.services.sentiment import (
+        get_huggingface_sentiment_service as _get_hf,
+    )
+
+    return _get_hf(*args, **kwargs)
+
+
 __all__ = [
     # Blockchain
     "BlockchainService",
@@ -47,4 +87,26 @@ __all__ = [
     "CrisisSearchResult",
     "MockPolymarketService",
     "get_real_polymarket_service",
+    # Sentiment
+    "SentimentService",
+    "SentimentResult",
+    "AnalysisContext",
+    "UrgencyLevel",
+    "MockSentimentService",
+    "get_huggingface_sentiment_service",
+    # Rate Limiting
+    "RateLimiter",
+    "RateLimitConfig",
+    "RateLimitResult",
+    "RateLimitStatus",
+    "InMemoryRateLimiter",
+    "get_in_memory_rate_limiter",
+    # Audit Logging
+    "AuditLogger",
+    "AuditEntry",
+    "AuditEventType",
+    "AuditLevel",
+    "AuditQuery",
+    "InMemoryAuditLogger",
+    "get_in_memory_audit_logger",
 ]
