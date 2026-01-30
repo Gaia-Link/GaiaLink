@@ -4,7 +4,6 @@ import React, { useMemo, useState } from 'react';
 import Map, { Marker, NavigationControl } from 'react-map-gl/maplibre';
 import maplibregl from 'maplibre-gl';
 import type { CrisisPoint } from '@/lib/mockData';
-import { getColorByType, getLabelSizeByType } from '../utils/globeUtils';
 
 export interface LivingGlobeProps {
     data: CrisisPoint[];
@@ -17,76 +16,72 @@ export default function LivingGlobe({ data, onPointClick }: LivingGlobeProps) {
         latitude: 20,
         zoom: 1.5
     });
+    const [selectedId, setSelectedId] = useState<string | null>(null);
 
-    const markers = useMemo(() => {
-        const allMarkers: React.ReactNode[] = [];
+    const getMarkerColor = (point: CrisisPoint) => {
+        if (point.type === 'voice') return '#4FD1C5'; // Teal for voice
+        if (point.type === 'node') return '#63B3ED'; // Blue for nodes
 
-        data.forEach((point, index) => {
-            const size = getLabelSizeByType(point.type) * 8;
-            const color = getColorByType(point.type);
+        // Crisis logic:
+        if (point.hasVault) {
+            return '#F6E05E'; // Golden/Yellow for Active Vaults (Money!)
+        } else {
+            return '#F56565'; // Red for Needs/Alerts (No Vault yet)
+        }
+    };
 
-            // 1. Main Marker
-            allMarkers.push(
-                <Marker
-                    key={`marker-${index}`}
-                    longitude={point.lng}
-                    latitude={point.lat}
-                    anchor="center"
-                    onClick={(e) => {
-                        e.originalEvent.stopPropagation();
-                        onPointClick(point);
+    const markers = useMemo(() => data.map((point) => {
+        const size = point.hasVault ? 24 : 12 + (point.intensity * 10); // Reduced size: 24px for Vault, 12-22px for others
+        const color = getMarkerColor(point);
+        const isSelected = selectedId === point.id;
+
+        return (
+            <Marker
+                key={point.id}
+                longitude={point.lng}
+                latitude={point.lat}
+                anchor="center"
+                onClick={e => {
+                    e.originalEvent.stopPropagation();
+                    onPointClick(point);
+                    setSelectedId(point.id);
+                }}
+            >
+                <div
+                    className="flex flex-col items-center justify-center cursor-pointer transition-all duration-300 group"
+                    style={{
+                        transform: isSelected ? 'scale(1.2)' : 'scale(1)',
+                        zIndex: isSelected ? 50 : 1
                     }}
                 >
+                    {/* Main Dot */}
                     <div
                         style={{
                             width: `${size}px`,
                             height: `${size}px`,
-                            backgroundColor: color,
                             borderRadius: '50%',
-                            cursor: 'pointer',
-                            boxShadow: `0 0 ${point.intensity ? point.intensity * 20 : 10}px ${color}`,
-                            animation: point.type === 'crisis' ? 'pulse 2s infinite' : 'none',
-                            zIndex: 10
+                            backgroundColor: color,
+                            boxShadow: `0 0 ${isSelected ? 20 : 10}px ${color}`,
+                            border: '2px solid rgba(0,0,0,0.5)',
+                            transition: 'all 0.3s ease',
+                            animation: point.intensity > 0.7 ? 'pulse 2s infinite' : 'none'
                         }}
-                        title={point.label}
-                    />
-                </Marker>
-            );
+                        className="relative flex items-center justify-center"
+                    >
+                        {/* Icon or Inner Dot */}
+                        {point.hasVault && (
+                            <div className="text-black font-bold text-[10px]">$</div>
+                        )}
+                    </div>
 
-            // 2. Satellite Dots for Density/Urgency (Only for Crisis)
-            if (point.type === 'crisis' && point.intensity && point.intensity > 0.5) {
-                const count = Math.floor(point.intensity * 8); // More dots = higher urgency/need
-                for (let i = 0; i < count; i++) {
-                    const angle = (Math.PI * 2 * i) / count;
-                    const radius = (0.2 + Math.random() * 0.3); // Reduced radius (approx 20-50km spread depending on lat)
-                    const latOffset = (Math.cos(angle) * radius);
-                    const lngOffset = (Math.sin(angle) * radius);
-
-                    allMarkers.push(
-                        <Marker
-                            key={`marker-${index}-sat-${i}`}
-                            longitude={point.lng + lngOffset}
-                            latitude={point.lat + latOffset}
-                            anchor="center"
-                        >
-                            <div
-                                style={{
-                                    width: '6px',
-                                    height: '6px',
-                                    backgroundColor: color,
-                                    borderRadius: '50%',
-                                    opacity: 0.6,
-                                    animation: `pulse ${1 + Math.random()}s infinite alternate`
-                                }}
-                            />
-                        </Marker>
-                    );
-                }
-            }
-        });
-
-        return allMarkers;
-    }, [data, onPointClick]);
+                    {/* Hover Label */}
+                    <div className="absolute top-full mt-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/80 px-2 py-1 rounded text-xs text-white whitespace-nowrap pointer-events-none z-50">
+                        {point.label}
+                    </div>
+                </div>
+            </Marker>
+        );
+    }), [data, onPointClick, selectedId]);
 
     return (
         <div className="w-full h-full bg-black">

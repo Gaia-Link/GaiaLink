@@ -1,0 +1,674 @@
+{
+    "crises": [
+        {
+            "id": "turkey_quake_2023",
+            "keywords": [
+                "turkey",
+                "syria",
+                "earthquake",
+                "kahramanmaras",
+                "土耳其",
+                "敘利亞",
+                "地震"
+            ],
+            "title": "Turkey-Syria Earthquake Relief",
+            "description": "A devastating 7.8 magnitude earthquake struck southern Turkey and northern Syria. Thousands of buildings collapsed.",
+            "severity": "CRITICAL",
+            "location": {
+                "lat": 37.166,
+                "lng": 38.795,
+                "region": "Gaziantep, Turkey"
+            },
+            "verification": {
+                "status": "VERIFIED",
+                "confidence": 98,
+                "polymarket_id": "poly_eq_turkey_2024"
+            },
+            "vaults": [
+                {
+                    "type": "DIRECT",
+                    "address": "0xDirectVaultTurkey...",
+                    "token": "USDC",
+                    "network": "Sepolia"
+                },
+                {
+                    "type": "YIELD",
+                    "protocol": "Euler",
+                    "address": "0xYieldVaultTurkey...",
+                    "apy": "4.5%",
+                    "token": "USDC",
+                    "network": "Sepolia"
+                }
+            ]
+        },
+        {
+            "id": "ukraine_conflict_2024",
+            "keywords": [
+                "ukraine",
+                "war",
+                "russia",
+                "kyiv",
+                "humanitarian",
+                "烏克蘭",
+                "戰爭"
+            ],
+            "title": "Ukraine Humanitarian Crisis",
+            "description": "Ongoing conflict has displaced millions. Winter is approaching, and there is a critical need for heating supplies.",
+            "severity": "CRITICAL",
+            "location": {
+                "lat": 50.450,
+                "lng": 30.523,
+                "region": "Kyiv, Ukraine"
+            },
+            "verification": {
+                "status": "VERIFIED",
+                "confidence": 99,
+                "polymarket_id": "poly_ukraine_aid"
+            },
+            "vaults": [
+                {
+                    "type": "DIRECT",
+                    "address": "0xUkraineDirectVault...",
+                    "token": "USDT",
+                    "network": "Ethereum"
+                },
+                {
+                    "type": "YIELD",
+                    "protocol": "Pendle",
+                    "address": "0xUkraineYieldVault...",
+                    "apy": "5.2%",
+                    "token": "stETH",
+                    "network": "Ethereum"
+                }
+            ]
+        },
+        {
+            "id": "gaza_humanitarian_2023",
+            "keywords": [
+                "gaza",
+                "palestine",
+                "israel",
+                "conflict",
+                "加薩",
+                "人道救援"
+            ],
+            "title": "Gaza Humanitarian Aid",
+            "description": "Urgent humanitarian crisis in Gaza. Medical supplies and clean water are critically low.",
+            "severity": "CRITICAL",
+            "location": {
+                "lat": 31.500,
+                "lng": 34.466,
+                "region": "Gaza Strip"
+            },
+            "verification": {
+                "status": "VERIFIED",
+                "confidence": 92
+            },
+            "vaults": [
+                {
+                    "type": "DIRECT",
+                    "address": "0xDirectVaultGaza...",
+                    "token": "USDC"
+                }
+            ]
+        },
+        {
+            "id": "sudan_famine_2024",
+            "keywords": [
+                "sudan",
+                "famine",
+                "africa",
+                "hunger",
+                "蘇丹",
+                "飢荒"
+            ],
+            "title": "Sudan Emergency Famine Relief",
+            "description": "Conflict has disrupted agriculture, leading to severe famine risks. WFP reports millions at risk.",
+            "severity": "CRITICAL",
+            "location": {
+                "lat": 15.500,
+                "lng": 32.559,
+                "region": "Khartoum, Sudan"
+            },
+            "verification": {
+                "status": "VERIFIED",
+                "confidence": 90
+            },
+            "vaults": [
+                {
+                    "type": "DIRECT",
+                    "address": "0xSudanReliefVault...",
+                    "token": "USDC",
+                    "network": "Optimism"
+                }
+            ]
+        },
+        {
+            "id": "yemen_crisis_2024",
+            "keywords": [
+                "yemen",
+                "civil war",
+                "hunger",
+                "cholera",
+                "葉門",
+                "內戰"
+            ],
+            "title": "Yemen Humanitarian Crisis",
+            "description": "Protracted conflict has left 80% of the population in need of aid. High risk of cholera outbreaks.",
+            "severity": "HIGH",
+            "location": {
+                "lat": 15.369,
+                "lng": 44.191,
+                "region": "Sana'a, Yemen"
+            },
+            "verification": {
+                "status": "VERIFIED",
+                "confidence": 85
+            },
+            "vaults": [
+                {
+                    "type": "DIRECT",
+                    "address": "0xYemenVault...",
+                    "token": "DAI"
+                }
+            ]
+        },
+        {
+            "id": "libya_flood_2023",
+            "keywords": [
+                "libya",
+                "derna",
+                "flood",
+                "dam",
+                "利比亞",
+                "水災"
+            ],
+            "title": "Libya Derna Flood Recovery",
+            "description": "Recovery efforts continue after catastrophic dam failures obliterated parts of Derna.",
+            "severity": "HIGH",
+            "location": {
+                "lat": 32.767,
+                "lng": 22.636,
+                "region": "Derna, Libya"
+            },
+            "verification": {
+                "status": "VERIFIED",
+                "confidence": 88
+            },
+            "vaults": []
+        },
+        {
+            "id": "morocco_rebuild_2024",
+            "keywords": [
+                "morocco",
+                "marrakesh",
+                "earthquake",
+                "atlas",
+                "摩洛哥",
+                "重建"
+            ],
+            "title": "Morocco Earthquake Reconstruction",
+            "description": "Post-earthquake reconstruction for remote villages in the Atlas Mountains.",
+            "severity": "HIGH",
+            "location": {
+                "lat": 31.629,
+                "lng": -7.981,
+                "region": "Marrakesh, Morocco"
+            },
+            "verification": {
+                "status": "VERIFIED",
+                "confidence": 95
+            },
+            "vaults": []
+        },
+        {
+            "id": "afghanistan_earthquake_2023",
+            "keywords": [
+                "afghanistan",
+                "herat",
+                "earthquake",
+                "阿富汗",
+                "地震"
+            ],
+            "title": "Herat Afghanistan Earthquake",
+            "description": "Series of 6.3 magnitude earthquakes flattened villages in Herat province.",
+            "severity": "HIGH",
+            "location": {
+                "lat": 34.352,
+                "lng": 62.204,
+                "region": "Herat, Afghanistan"
+            },
+            "verification": {
+                "status": "VERIFIED",
+                "confidence": 90
+            },
+            "vaults": []
+        },
+        {
+            "id": "pakistan_flood_recovery",
+            "keywords": [
+                "pakistan",
+                "flood",
+                "monsoon",
+                "巴基斯坦",
+                "水災"
+            ],
+            "title": "Pakistan Flood Recovery",
+            "description": "Long-term recovery from historic monsoon floods. Rebuilding resilient housing.",
+            "severity": "MODERATE",
+            "location": {
+                "lat": 30.375,
+                "lng": 69.345,
+                "region": "Sindh, Pakistan"
+            },
+            "verification": {
+                "status": "VERIFIED",
+                "confidence": 85
+            },
+            "vaults": [
+                {
+                    "type": "YIELD",
+                    "protocol": "Aave",
+                    "address": "0xPakistanYield...",
+                    "apy": "3.2%",
+                    "token": "USDC"
+                }
+            ]
+        },
+        {
+            "id": "somalia_drought_2024",
+            "keywords": [
+                "somalia",
+                "drought",
+                "horn of africa",
+                "索馬利亞",
+                "乾旱"
+            ],
+            "title": "Horn of Africa Drought",
+            "description": "Worst drought in 40 years. Millions of livestock dead, extreme food insecurity.",
+            "severity": "CRITICAL",
+            "location": {
+                "lat": 5.152,
+                "lng": 46.199,
+                "region": "Somalia"
+            },
+            "verification": {
+                "status": "VERIFIED",
+                "confidence": 93
+            },
+            "vaults": []
+        },
+        {
+            "id": "ethiopia_tigray_recovery",
+            "keywords": [
+                "ethiopia",
+                "tigray",
+                "conflict",
+                "衣索比亞",
+                "提格雷"
+            ],
+            "title": "Tigray Post-Conflict Recovery",
+            "description": "Rebuilding infrastructure and restoring health services after years of conflict.",
+            "severity": "HIGH",
+            "location": {
+                "lat": 14.032,
+                "lng": 38.316,
+                "region": "Tigray, Ethiopia"
+            },
+            "verification": {
+                "status": "VERIFIED",
+                "confidence": 80
+            },
+            "vaults": []
+        },
+        {
+            "id": "hawaii_wildfire_recovery",
+            "keywords": [
+                "hawaii",
+                "maui",
+                "lahaina",
+                "wildfire",
+                "夏威夷",
+                "火災"
+            ],
+            "title": "Maui Wildfire Restoration",
+            "description": "Restoring Lahaina town after deadly wildfires. Cultural heritage preservation focus.",
+            "severity": "MODERATE",
+            "location": {
+                "lat": 20.885,
+                "lng": -156.678,
+                "region": "Maui, Hawaii"
+            },
+            "verification": {
+                "status": "VERIFIED",
+                "confidence": 96
+            },
+            "vaults": [
+                {
+                    "type": "DIRECT",
+                    "address": "0xMauiFund...",
+                    "token": "USDC"
+                }
+            ]
+        },
+        {
+            "id": "canada_wildfire_2024",
+            "keywords": [
+                "canada",
+                "wildfire",
+                "smoke",
+                "quebec",
+                "加拿大",
+                "森林大火"
+            ],
+            "title": "Canadian Wildfire Response",
+            "description": "Unprecedented wildfire season affecting air quality across North America.",
+            "severity": "HIGH",
+            "location": {
+                "lat": 55.000,
+                "lng": -100.000,
+                "region": "Canada"
+            },
+            "verification": {
+                "status": "VERIFIED",
+                "confidence": 92
+            },
+            "vaults": []
+        },
+        {
+            "id": "amazon_deforestation",
+            "keywords": [
+                "amazon",
+                "brazil",
+                "deforestation",
+                "climate",
+                "亞馬遜",
+                "雨林"
+            ],
+            "title": "Amazon Rainforest Conservation",
+            "description": "Funding indigenous patrols and satellite monitoring to stop illegal logging.",
+            "severity": "HIGH",
+            "location": {
+                "lat": -3.465,
+                "lng": -62.215,
+                "region": "Amazonas, Brazil"
+            },
+            "verification": {
+                "status": "ONGOING",
+                "confidence": 85
+            },
+            "vaults": [
+                {
+                    "type": "YIELD",
+                    "protocol": "Toucan",
+                    "address": "0xAmazonCarbon...",
+                    "apy": "2.1%",
+                    "token": "BCT"
+                }
+            ]
+        },
+        {
+            "id": "australia_bushfire_prep",
+            "keywords": [
+                "australia",
+                "bushfire",
+                "wildfire",
+                "澳洲",
+                "野火"
+            ],
+            "title": "Australia Bushfire Preparedness",
+            "description": "Preparing for El Niño induced fire season. Equipment for volunteer firefighters.",
+            "severity": "MODERATE",
+            "location": {
+                "lat": -33.868,
+                "lng": 151.209,
+                "region": "NSW, Australia"
+            },
+            "verification": {
+                "status": "PREDICTION",
+                "confidence": 70
+            },
+            "vaults": []
+        },
+        {
+            "id": "japan_quake_risk",
+            "keywords": [
+                "japan",
+                "tokyo",
+                "earthquake",
+                "tsunami",
+                "日本",
+                "地震"
+            ],
+            "title": "Japan Seismic Risk Prep",
+            "description": "Monitoring Nankai Trough. High probability of large-scale tremors.",
+            "severity": "MODERATE",
+            "location": {
+                "lat": 35.676,
+                "lng": 139.650,
+                "region": "Tokyo, Japan"
+            },
+            "verification": {
+                "status": "PREDICTION",
+                "confidence": 65
+            },
+            "vaults": []
+        },
+        {
+            "id": "california_drought",
+            "keywords": [
+                "california",
+                "drought",
+                "water",
+                "加州",
+                "乾旱"
+            ],
+            "title": "California Water Resilience",
+            "description": "Investing in sustainable agriculture and water recycling technologies.",
+            "severity": "MODERATE",
+            "location": {
+                "lat": 36.778,
+                "lng": -119.417,
+                "region": "California, USA"
+            },
+            "verification": {
+                "status": "ONGOING",
+                "confidence": 90
+            },
+            "vaults": []
+        },
+        {
+            "id": "bangladesh_cyclone_shelter",
+            "keywords": [
+                "bangladesh",
+                "cyclone",
+                "flood",
+                "孟加拉",
+                "氣旋"
+            ],
+            "title": "Bangladesh Cyclone Shelters",
+            "description": "Building elevated shelters for coastal communities vulnerable to cyclones.",
+            "severity": "HIGH",
+            "location": {
+                "lat": 23.685,
+                "lng": 90.356,
+                "region": "Dhaka, Bangladesh"
+            },
+            "verification": {
+                "status": "VERIFIED",
+                "confidence": 88
+            },
+            "vaults": [
+                {
+                    "type": "DIRECT",
+                    "address": "0xBanglaRelief...",
+                    "token": "DAI"
+                }
+            ]
+        },
+        {
+            "id": "haiti_gang_violence",
+            "keywords": [
+                "haiti",
+                "port-au-prince",
+                "gang",
+                "violence",
+                "海地",
+                "動亂"
+            ],
+            "title": "Haiti Medical & Food Aid",
+            "description": "Collapsed state and gang violence blocking access to essentials.",
+            "severity": "CRITICAL",
+            "location": {
+                "lat": 18.594,
+                "lng": -72.307,
+                "region": "Port-au-Prince, Haiti"
+            },
+            "verification": {
+                "status": "VERIFIED",
+                "confidence": 85
+            },
+            "vaults": []
+        },
+        {
+            "id": "venezuela_refugee",
+            "keywords": [
+                "venezuela",
+                "refugee",
+                "migration",
+                "委內瑞拉",
+                "難民"
+            ],
+            "title": "Venezuelan Migrant Support",
+            "description": "Supporting displacement camps and integration in Colombia and Brazil.",
+            "severity": "HIGH",
+            "location": {
+                "lat": 6.423,
+                "lng": -66.589,
+                "region": "Venezuela"
+            },
+            "verification": {
+                "status": "ONGOING",
+                "confidence": 80
+            },
+            "vaults": []
+        },
+        {
+            "id": "philippines_typhoon_2024",
+            "keywords": [
+                "philippines",
+                "typhoon",
+                "manila",
+                "flood",
+                "菲律賓",
+                "颱風"
+            ],
+            "title": "Philippines Super Typhoon Rai Relief",
+            "description": "Super Typhoon Rai has caused massive flooding in Manila.",
+            "severity": "HIGH",
+            "location": {
+                "lat": 14.599,
+                "lng": 120.984,
+                "region": "Manila, Philippines"
+            },
+            "verification": {
+                "status": "VERIFIED",
+                "confidence": 88
+            },
+            "vaults": []
+        },
+        {
+            "id": "indonesia_volcano",
+            "keywords": [
+                "indonesia",
+                "volcano",
+                "eruption",
+                "印尼",
+                "火山"
+            ],
+            "title": "Mt. Semeru Eruption Relief",
+            "description": "Emergency shelters for villagers displaced by volcanic ash and lava flows.",
+            "severity": "HIGH",
+            "location": {
+                "lat": -8.108,
+                "lng": 112.922,
+                "region": "Java, Indonesia"
+            },
+            "verification": {
+                "status": "VERIFIED",
+                "confidence": 95
+            },
+            "vaults": []
+        },
+        {
+            "id": "iceland_volcano",
+            "keywords": [
+                "iceland",
+                "grindavik",
+                "volcano",
+                "冰島",
+                "火山"
+            ],
+            "title": "Iceland Grindavik Housing",
+            "description": "Supporting residents of Grindavik whose homes were swallowed by lava fissures.",
+            "severity": "MODERATE",
+            "location": {
+                "lat": 63.842,
+                "lng": -22.438,
+                "region": "Grindavik, Iceland"
+            },
+            "verification": {
+                "status": "VERIFIED",
+                "confidence": 99
+            },
+            "vaults": []
+        },
+        {
+            "id": "chile_wildfire",
+            "keywords": [
+                "chile",
+                "valparaiso",
+                "wildfire",
+                "智利",
+                "野火"
+            ],
+            "title": "Chile Valparaiso Fire Recovery",
+            "description": "Rebuilding neighborhoods destroyed by fast-moving urban wildfires.",
+            "severity": "HIGH",
+            "location": {
+                "lat": -33.047,
+                "lng": -71.612,
+                "region": "Valparaiso, Chile"
+            },
+            "verification": {
+                "status": "VERIFIED",
+                "confidence": 94
+            },
+            "vaults": []
+        },
+        {
+            "id": "myanmar_civil_war",
+            "keywords": [
+                "myanmar",
+                "civil war",
+                "rohingya",
+                "緬甸",
+                "內戰"
+            ],
+            "title": "Myanmar Emergency Medical Aid",
+            "description": "Aid for IDPs in jungle camps fleeing military airstrikes.",
+            "severity": "CRITICAL",
+            "location": {
+                "lat": 21.916,
+                "lng": 95.956,
+                "region": "Myanmar"
+            },
+            "verification": {
+                "status": "VERIFIED",
+                "confidence": 82
+            },
+            "vaults": []
+        }
+    ],
+    "proposals": []
+}

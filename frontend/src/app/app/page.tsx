@@ -5,11 +5,7 @@ import dynamic from 'next/dynamic';
 import Overlay from '@/features/forum/components/Overlay';
 import SpoonOSInterface from '@/features/spoon-os/components/SpoonOSInterface';
 import DonationModal from '@/features/donation/components/DonationModal';
-
-const LivingGlobe = dynamic(() => import('@/features/globe/components/LivingGlobe'), {
-  ssr: false,
-  loading: () => <div className="fixed inset-0 z-0 bg-black" />
-});
+import LivingGlobe from '@/features/globe/components/LivingGlobe';
 import { CrisisPoint, MOCK_DATA } from '@/lib/mockData';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 
@@ -18,6 +14,7 @@ export default function Home() {
   const [isSpoonActive, setIsSpoonActive] = useState(false); // Controls dimming
   const [triggerSpoon, setTriggerSpoon] = useState(false);   // Signal to wake up spoon
   const [isDonationOpen, setIsDonationOpen] = useState(false);
+  const [data, setData] = useState<CrisisPoint[]>([]);
 
   // Toggle SpoonOS with Spacebar
   useEffect(() => {
@@ -36,6 +33,35 @@ export default function Home() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // Fetch crisis data from our local API (which reads backend_data/data.json)
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const res = await fetch('/api/crises');
+        const json = await res.json();
+        if (json.crises) {
+          // Transform backend data format to frontend CrisisPoint format if needed
+          // For now, assuming distinct fields map cleanly or we just use raw
+          // We map 'location' { lat, lng } to top level lat/lng for LivingGlobe
+          const mappedData = json.crises.map((c: any) => ({
+            id: c.id,
+            lat: c.location.lat,
+            lng: c.location.lng,
+            intensity: c.severity === 'CRITICAL' ? 1.0 : c.severity === 'HIGH' ? 0.8 : 0.5,
+            label: c.title,
+            type: 'crisis', // distinguish from 'voice' or others if needed
+            description: c.description,
+            hasVault: c.vaults && c.vaults.length > 0 // Map backend vault existence
+          }));
+          setData(mappedData);
+        }
+      } catch (e) {
+        console.error("Failed to fetch crises", e);
+      }
+    }
+    fetchData();
   }, []);
 
   const handleDonate = (point: CrisisPoint) => {
@@ -60,7 +86,7 @@ export default function Home() {
     <main className="relative h-screen w-full overflow-hidden bg-black">
       {/* 1. The Living Globe (Background Layer) */}
       <div className={`absolute inset-0 z-0 transition-all duration-700 ${isSpoonActive ? 'scale-95 opacity-50 blur-sm rounded-3xl overflow-hidden' : 'scale-100 opacity-100 blur-0'}`}>
-        <LivingGlobe data={MOCK_DATA} onPointClick={setSelectedPoint} />
+        <LivingGlobe data={data} onPointClick={setSelectedPoint} />
       </div>
 
       {/* 2. UI Overlay Layer (Foreground) */}
