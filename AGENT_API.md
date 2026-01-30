@@ -2,15 +2,23 @@
 
 本文檔定義前端 (Frontend) 與 SpoonOS Agent (Python Backend) 之間的數據交互標準。
 
-## 1. 數據源架構 (Agent Data Source - Mock DB)
+## 1. 系統與數據架構 (System & Data Architecture)
 
-為了簡化前後端傳輸並增加 Agent 的靈活性，我們在 Agent 端維護一個輕量級的 JSON 數據庫 (`data.json` 或 `CRISIS_DB`)。
+為了確保 Hackathon Demo 的一致性，Frontend 與 Agent 共用同一份數據源：**`backend_data/data.json`**。這確保了 Visualization (前端顯示) 與 Logic (Agent 認知) 的狀態是完全同步的。
 
-**優勢**：
-1.  **前端極簡化**：只需傳送 `prompt` 和可選的 `id`，不需要傳送整坨資料。
-2.  **Agent 自主性**：Agent 可以根據 Prompt 搜索整個資料庫（例如："哪裡有火災？"），而不依賴前端選中特定點。
+### 1.1 核心組件與數據流
+*   **Backend Data (`data.json`)**: **Single Source of Truth**。包含所有危機事件 (Crisis)、資金池 (Vaults) 與驗證資訊。
+*   **Frontend (Next.js)**:
+    *   **Access**: 透過 `/api/crises` (Internal API) 讀取數據。
+    *   **Role**: **Visualization**。負責將 `data.json` 渲染到 3D 地球上，並根據 `severity` 與 `hasVault` 顯示不同顏色 ($/Need)。
+*   **Agent (Python/SpoonOS)**:
+    *   **Access**: 透過 `db_service.py` 直接載入數據。
+    *   **Role**: **Logic & State**。負責 NLU 意圖解析、RAG 檢索 (例如用戶問 "哪裡有火災" 時查詢 DB)、以及模擬寫入 (In-Memory Proposal Creation)。
 
----
+### 1.2 優勢
+1.  **一致性 (Consistency)**: 用戶在地圖上看到的，就是 Agent 知道的。不會出現「地圖上有點，但 Agent 說不知道」的情況。
+2.  **效能 (Performance)**: 前端不需要把整包數據傳給 Agent，只需傳送 Prompt，Agent 自己去查 DB。
+3.  **開發速度 (Velocity)**: 修改 `data.json` 一次，前後端同時更新，極適合 Hackathon 迭代。
 
 ## 2. 前端發送給 Agent 的數據 (Request)
 
