@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 import {NoLossVault} from "../vaults/NoLossVault.sol";
 import {DirectVault} from "../vaults/DirectVault.sol";
+import {MockAaveStrategy} from "../strategies/MockAaveStrategy.sol";
 import {GaiaCharityRegistry} from "../access/GaiaCharityRegistry.sol";
 import {GaiaAgentRegistry} from "../access/GaiaAgentRegistry.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -162,7 +163,15 @@ contract GaiaProposalManager is Ownable {
 
         // 2. Handle No-Loss Donation
         if (p.totalNoLoss > 0) {
-            NoLossVault nVault = new NoLossVault(p.asset, charityAdmin, owner());
+            // Deploy Strategy first (Asset, Owner=ContractManager)
+            MockAaveStrategy strategy = new MockAaveStrategy(address(p.asset), address(this));
+            
+            // Deploy Vault (Asset, Charity, Owner, Platform, Strategy)
+            NoLossVault nVault = new NoLossVault(p.asset, charityAdmin, owner(), owner(), address(strategy));
+            
+            // Transfer Strategy ownership to Vault so Vault can harvest/withdraw
+            strategy.transferOwnership(address(nVault));
+
             p.noLossVault = address(nVault);
             p.asset.approve(address(nVault), p.totalNoLoss);
             nVault.deposit(p.totalNoLoss);
