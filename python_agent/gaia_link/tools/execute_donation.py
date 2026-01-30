@@ -95,6 +95,20 @@ class ExecuteDonationTool(BaseTool):
         Returns:
             交易結果字典，包含 success, transaction_id, status, details, explorer_url, error
         """
+        # 輸入驗證
+        if amount <= 0:
+            return self._build_error_response("Amount must be positive")
+
+        if token not in SUPPORTED_TOKENS:
+            return self._build_error_response(
+                f"Unsupported token: {token}. Supported: {', '.join(SUPPORTED_TOKENS)}"
+            )
+
+        if not recipient_address or not recipient_address.startswith("0x") or len(recipient_address) != 42:
+            return self._build_error_response(
+                "Invalid address format. Must be 42-character hex string starting with 0x"
+            )
+
         # 獲取服務
         service = self._get_service()
         settings = get_settings()
