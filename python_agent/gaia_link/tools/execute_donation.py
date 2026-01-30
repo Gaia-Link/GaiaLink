@@ -39,10 +39,10 @@ class ExecuteDonationTool(BaseTool):
 
     name: str = "execute_donation"
     description: str = (
-        "Execute a humanitarian donation transaction on blockchain. "
+        "Prepare a humanitarian donation transaction payload for user signature. "
         "Supports USDC, USDT, ETH, DAI tokens. "
-        "Calculates gas fees and returns transaction details including "
-        "transaction ID, status, and blockchain explorer URL."
+        "Can route to DIRECT vaults or YIELD strategies (Euler/Pendle). "
+        "Returns a transaction object that the frontend can propose to the user."
     )
     parameters: dict = {
         "type": "object",
@@ -58,42 +58,39 @@ class ExecuteDonationTool(BaseTool):
             },
             "recipient_address": {
                 "type": "string",
-                "description": "Recipient wallet address"
+                "description": "Target address (optional, if not provided will route based on context)"
+            },
+            "vault_type": {
+                "type": "string",
+                "enum": ["DIRECT", "YIELD"],
+                "description": "Type of vault strategy. DIRECT = immediate transfer, YIELD = no-loss donation via DeFi.",
+                "default": "DIRECT"
             }
         },
-        "required": ["amount", "token", "recipient_address"]
+        "required": ["amount", "token"]
     }
 
     # 允許注入自定義服務（用於測試）
     _blockchain_service: Optional[BlockchainService] = None
 
     def __init__(self, blockchain_service: Optional[BlockchainService] = None, **data):
-        """
-        初始化工具
-
-        Args:
-            blockchain_service: 可選的區塊鏈服務實例（用於依賴注入）
-        """
         super().__init__(**data)
         self._blockchain_service = blockchain_service
 
     def _get_service(self) -> BlockchainService:
-        """獲取區塊鏈服務實例"""
         if self._blockchain_service is not None:
             return self._blockchain_service
         return get_blockchain_service()
 
-    async def execute(self, amount: float, token: str, recipient_address: str) -> dict:
+    async def execute(self, amount: float, token: str, recipient_address: str = None, vault_type: str = "DIRECT") -> dict:
         """
-        執行捐款交易
+        準備捐款交易 Payload
 
         Args:
             amount: 捐款金額
-            token: 代幣類型 (USDC, USDT, ETH, DAI)
-            recipient_address: 接收者錢包地址
-
-        Returns:
-            交易結果字典，包含 success, transaction_id, status, details, explorer_url, error
+            token: 代幣類型
+            recipient_address: 接收地址 (若無則由 Agent 根據上下文決定，此處 Demo 默認 mock)
+            vault_type: 資金池類型 (DIRECT/YIELD)
         """
         # 輸入驗證
         if amount <= 0:
@@ -104,45 +101,38 @@ class ExecuteDonationTool(BaseTool):
                 f"Unsupported token: {token}. Supported: {', '.join(SUPPORTED_TOKENS)}"
             )
 
-        if not recipient_address or not recipient_address.startswith("0x") or len(recipient_address) != 42:
-            return self._build_error_response(
-                "Invalid address format. Must be 42-character hex string starting with 0x"
-            )
+        # 若未提供地址，使用 Mock 地址 (Demo 用)
+        if not recipient_address:
+            # 在真實場景中，這裡會查詢 data.json 找到對應災情的 Vault 地址
+            recipient_address = "0xDem0VaultAddressForTurkeyRelief00000000" 
 
-        # 獲取服務
+        # 簡單的 Payload 構建 (Mock)
+        # 真實場景會調用合約生成 calldata (e.g., ERC20 transfer or Vault deposit)
+        
+        # 獲取服務用於估算 Gas (可選)
         service = self._get_service()
-        settings = get_settings()
+        
+        # 模擬 Gas 估算
+        estimated_gas = 21000
+        estimated_gas_price = "20 gwei"
 
-        # 執行交易
-        result = await service.send_transaction(
-            amount=amount,
-            token=token,
-            recipient_address=recipient_address,
-        )
-
-        # 如果交易失敗，返回錯誤
-        if not result.success:
-            return self._build_error_response(result.error or "Transaction failed")
-
-        # 計算總成本（美元）
-        token_rate = TOKEN_USD_RATES.get(token, 1.0)
-        amount_usd = amount * token_rate
-        total_cost_usd = amount_usd + result.gas_fee_usd
-
-        # 構建成功回應
         return {
             "success": True,
-            "transaction_id": result.transaction_id,
-            "status": result.status,
-            "details": {
-                "amount_sent": amount,
-                "token": token,
-                "gas_fee": result.gas_fee,
-                "total_cost_usd": round(total_cost_usd, 2),
-                "network": service.network_name,
+            "status": "ready_to_sign",
+            "transaction_payload": {
+                "to": recipient_address,
+                "value": "0" if token != "ETH" else str(amount), # ETH 直接轉帳，ERC20 為 0
+                "data": "0x...", # 這裡是 ERC20 transfer 或 Vault deposit 的 calldata encoded
+                "chainId": 11155111, # Sepolia
+                "intent_summary": f"Donate {amount} {token} via {vault_type} Vault"
             },
-            "explorer_url": result.explorer_url,
-            "error": None,
+            "details": {
+                "amount": amount,
+                "token": token,
+                "vault_type": vault_type,
+                "estimated_gas": estimated_gas
+            },
+            "message": f"I have prepared a {vault_type} donation of {amount} {token}. Please sign the transaction to proceed."
         }
 
     def _build_error_response(self, error_message: str) -> dict:

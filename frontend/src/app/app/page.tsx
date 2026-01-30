@@ -84,6 +84,11 @@ export default function Home() {
       console.log('📝 Signing proposal transaction...', data);
       alert('✅ Transaction signed! (Mock)\n\nIn production, this would:\n1. Prompt your wallet to sign\n2. Deploy a new vault proposal on-chain\n3. Show transaction confirmation');
     }
+    else if (action === 'sign_transaction') {
+      // Mock: Simulate signing a donation transaction
+      console.log('📝 Signing donation transaction...', data);
+      alert(`✅ Donation Transaction signed! (Mock)\n\nPayload:\nTo: ${data?.to}\nValue: ${data?.value}\nData: ${data?.data}\nIntent: ${data?.intent_summary}`);
+    }
     else if (action === 'donate_direct' || action === 'donate_yield') {
       // Open donation modal with the selected crisis point
       setIsDonationOpen(true);

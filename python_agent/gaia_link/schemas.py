@@ -4,7 +4,7 @@ Gaia Link Agent 數據模型定義
 定義所有工具的輸入輸出結構
 """
 
-from typing import Optional
+from typing import Optional, Dict, Any
 from pydantic import BaseModel, Field
 
 
@@ -141,3 +141,10 @@ class AgentResponse(BaseModel):
     tool_results: list[ToolResult] = Field(default_factory=list, description="工具執行結果")
     recommendation: Recommendation = Field(description="建議")
     ui_hints: UIHints = Field(default_factory=UIHints, description="UI 提示")
+
+class ChatResponse(BaseModel):
+    """Standardized Chat Response for Frontend (Source of Truth)"""
+    message: str
+    action_taken: str
+    ui_hints: Dict[str, Any]
+    transaction_payload: Optional[Dict[str, Any]] = None

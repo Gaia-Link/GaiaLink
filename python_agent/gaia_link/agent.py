@@ -16,6 +16,7 @@ from gaia_link.tools import (
     VerifyCrisisTool,
     AnalyzeSentimentTool,
     ExecuteDonationTool,
+    ListCrisesTool,  # Registered new tool
 )
 
 
@@ -25,13 +26,18 @@ You are Gaia Link Agent (蓋亞連結), a humanitarian crisis response AI assist
 
 ## Your Roles
 
-### Role 1: Auditor (審計師)
+### Role 1: Information Sources (資訊嚮導)
+When users ask about what crises are happening or where they can help:
+- Use 'list_crises' to retrieve the latest data from the database.
+- Summarize the top critical crises.
+
+### Role 2: Auditor (審計師)
 When users view forum posts, you automatically:
 - Scan Polymarket and news sources
 - Verify crisis authenticity
 - Provide trust labels: [VERIFIED], [SUSPICIOUS], [SCAM]
 
-### Role 2: Payer (支付官)
+### Role 3: Payer (支付官)
 When users want to donate, you:
 - Calculate gas fees
 - Execute cross-chain transfers
@@ -41,24 +47,39 @@ When users want to donate, you:
 1. verify_crisis - Cross-reference crisis with Polymarket prediction data
 2. analyze_sentiment - Analyze post urgency and authenticity
 3. execute_donation - Process blockchain donations
+4. list_crises - List all active crises from the database
 
 ## Response Format
-Always respond in JSON format that is frontend-friendly:
+You MUST output strictly Valid JSON. Do not return markdown. Do not wrap in ```json markers.
+
+If you called 'execute_donation', you MUST include the 'transaction_payload' from the tool output in your final JSON response.
+
+Required JSON Structure:
 {
     "message": "Human readable response",
-    "action_taken": "action_name",
-    "recommendation": {
-        "action": "PROCEED|CAUTION|ABORT",
-        "confidence": 0-100,
-        "reason": "explanation"
-    }
+    "action_taken": "chat|verify_crisis|execute_donation|list_crises",
+    "ui_hints": {
+        "mode": "IDLE|DECISION|SIGNATURE",
+        "display_data": { "title": "...", "badge_text": "...", "badge_color": "green|yellow|red", "risk_level": "LOW|HIGH" },
+        "actions": [ { "label": "...", "type": "...", "icon": "..." } ]
+    },
+    "transaction_payload": { ... } (Only if execute_donation was called)
 }
 
+## Critical Instructions
+- You MUST call the tools internally to get the information. 
+- You MUST NOT return the tool invocation code (e.g., `{"tool_code": "..."}`).
+- You MUST return the FINAL JSON response containing the *result* of the tool usage, not the code to run it.
+- If you use `list_crises`, summarize the results in the 'message' field and set 'action_taken' to 'list_crises'.
+- **IMMEDIATE ACTION**: When a user asks to verify, analyze, or list something, DO NOT say "I will do it". *Just do it* immediately by calling the tool. Do not ask for permission.
+- **NO CHATTY FILLERS**: Do not output intermediate "I am processing..." messages. Your first response must contain the tool result.
+
 ## Guidelines
-- Be empathetic but objective in crisis verification
-- Prioritize user safety and fund security
-- Provide clear, actionable recommendations
-- Use Traditional Chinese (繁體中文) for responses when appropriate
+- Be empathetic but objective.
+- If user wants to donate but no amount is given, ask for amount.
+- If amount is given, CALL execute_donation immediately.
+- If user asks to "analyze" or "verify" a crisis, CALL 'verify_crisis' immediately with the crisis name.
+- Use Traditional Chinese (繁體中文) for 'message' field unless user speaks English.
 """
 
 
@@ -94,8 +115,49 @@ class GaiaLinkAgent(SpoonReactAI):
             VerifyCrisisTool(),
             AnalyzeSentimentTool(),
             ExecuteDonationTool(),
+            ListCrisesTool(),  # Registered
         ])
     )
+
+    def __init__(self, **data):
+        from gaia_link.config import get_settings
+        settings = get_settings()
+        
+        # Initialize LLM using ChatBot class (required by SpoonReactAI)
+        try:
+            # Attempt to import ChatBot from spoon_ai.chat based on user feedback
+            from spoon_ai.chat import ChatBot
+            
+            provider = settings.llm_provider
+            model = settings.gemini_model if provider == "gemini" else "gpt-4"
+            api_key = settings.google_api_key if provider == "gemini" else settings.openai_api_key
+            
+            print(f"--- ChatBot Init: Provider={provider}, Model={model} ---")
+            
+            # Create ChatBot instance
+            # Note: passing api_key might be needed depending on ChatBot implementation, 
+            # checking if it accepts it or relies on env vars. 
+            # We pass it just in case, or rely on env vars if it ignores kwargs.
+            chatbot = ChatBot(
+                llm_provider=provider,
+                model_name=model,
+                api_key=api_key
+            )
+            
+            # Pass the ChatBot instance as 'llm' field
+            data['llm'] = chatbot
+
+        except ImportError as e:
+            print(f"--- Error: Could not import ChatBot from spoon_ai.chat: {e} ---")
+            # Fallback (which might fail validation, but better than nothing)
+            if settings.llm_provider == "gemini":
+                data["llm_provider"] = "gemini"
+                data["model"] = settings.gemini_model
+                data["api_key"] = settings.google_api_key
+        except Exception as e:
+            print(f"--- Error initializing ChatBot: {e} ---")
+            
+        super().__init__(**data)
 
     def get_info(self) -> dict:
         """取得 Agent 資訊"""

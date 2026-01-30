@@ -39,10 +39,31 @@ class Settings(BaseSettings):
     """
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=(".env", "../.env"),  # Try current dir first, then parent
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
+    )
+
+    # LLM 配置
+    llm_provider: str = Field(
+        default="openai",
+        description="LLM Provider (openai, gemini, anthropic)",
+    )
+
+    google_api_key: Optional[str] = Field(
+        default=None,
+        description="Google Gemini API Key",
+    )
+    
+    gemini_model: str = Field(
+        default="gemini-2.5-flash",
+        description="Gemini Model Name (e.g., gemini-2.5-flash, gemini-2.5-pro)",
+    )
+
+    openai_api_key: Optional[str] = Field(
+        default=None,
+        description="OpenAI API Key",
     )
 
     # 區塊鏈配置

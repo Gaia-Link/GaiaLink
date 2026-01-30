@@ -1,18 +1,37 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import SpoonOSInterface from './SpoonOSInterface';
-import { MockAgentResponses } from '../services/agentService';
 
-// Mock the simulate delay to speed up tests
-vi.mock('../services/agentService', async () => {
-    const actual = await vi.importActual('../services/agentService');
+// Define minimal mock responses locally to avoid importing actual module in mock factory
+const LocalMockResponses = {
+    'default': {
+        message: "I am ready to assist.",
+        action_taken: "idle_help",
+        ui_hints: { mode: "IDLE", actions: [] }
+    },
+    'turkey': {
+        message: "Since you asked about Turkey, here is the analysis.",
+        action_taken: "verify_crisis",
+        ui_hints: {
+            mode: "DECISION",
+            display_data: { title: "Turkey Crisis", risk_level: "CRITICAL", badge_text: "Verified", badge_color: "green" },
+            actions: []
+        }
+    }
+};
+
+// Mock the service using local data
+vi.mock('../services/agentService', () => {
     return {
-        ...actual,
         sendMessageToAgent: vi.fn(async (msg: string) => {
-            // Return immediate response for tests
+            // Check for a specific "delay" trigger string for testing intermediate states
+            if (msg.includes('delay_me')) {
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+
             const lower = msg.toLowerCase();
-            if (lower.includes('turkey')) return MockAgentResponses['turkey'];
-            return MockAgentResponses['default'];
+            if (lower.includes('turkey')) return LocalMockResponses['turkey'];
+            return LocalMockResponses['default'];
         })
     };
 });
@@ -20,10 +39,9 @@ vi.mock('../services/agentService', async () => {
 describe('SpoonOSInterface Integration', () => {
     it('renders in IDLE mode initially (or hidden)', () => {
         render(<SpoonOSInterface isOpen={false} onClose={() => { }} selectedPoint={null} onAction={() => { }} />);
-        // When not open, it might still render but not be visible/active in "LISTENING"
-        // Based on code: isOpen=false + IDLE -> just renders IDLE bar
         const input = screen.queryByRole('textbox');
-        // Initial state is IDLE, input should be present but maybe placeholders typing
+        // When IDLE/Hidden, input might not be interactive or present depending on implementation details
+        // but checking it doesn't crash is good.
     });
 
     it('activates LISTENING mode when opened', () => {
@@ -32,24 +50,78 @@ describe('SpoonOSInterface Integration', () => {
         expect(input).toBeDefined();
     });
 
-    it('submits query and displays DECISION card', async () => {
+    it('enters THINKING mode and keeps expanded view during processing', async () => {
+        render(<SpoonOSInterface isOpen={true} onClose={() => { }} selectedPoint={null} onAction={() => { }} />);
+
+        const input = screen.getByRole('textbox');
+        fireEvent.change(input, { target: { value: 'delay_me turkey' } });
+        fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' });
+
+        // Immediately after enter, we should be in THINKING mode
+        // Verify "Thinking..." text is present inside the chat area
+        await waitFor(() => {
+            expect(screen.getByText('Thinking...')).toBeDefined();
+        });
+
+        // Verify it is expanded - checking for the header. 
+        // In THINKING mode, the header title changes to "Processing..."
+        // Use regex for case insensitivity if needed, but exact match is better if known
+        expect(screen.getByText('Processing...')).toBeDefined();
+
+        // Wait for it to finish and go to DECISION
+        await waitFor(() => {
+            // Since we mocked data locally, check that text
+            const analysisText = screen.getByText(/Since you asked about/i);
+            expect(analysisText).toBeDefined();
+        }, { timeout: 2000 });
+
+        // After finishing, it should revert to normal header
+        expect(screen.getByText('GaiaLink Agent')).toBeDefined();
+    });
+
+    it('submits query and displays message response', async () => {
         render(<SpoonOSInterface isOpen={true} onClose={() => { }} selectedPoint={null} onAction={() => { }} />);
 
         const input = screen.getByRole('textbox');
         fireEvent.change(input, { target: { value: 'Turkey earthquake' } });
         fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' });
 
-        // Should go to PROCESSING then DECISION
-        // Since we mocked sendMessageToAgent to be instant, we wait for re-render
-
+        // Check for the agent's response message
         await waitFor(() => {
-            const analysisText = screen.getByText(/SpoonOS Analysis/i);
-            expect(analysisText).toBeDefined();
+            const messageText = screen.getByText(/Since you asked about Turkey/i);
+            expect(messageText).toBeDefined();
         });
 
+        // Check that the header is the standard Agent header
+        const header = screen.getByText('GaiaLink Agent');
+        expect(header).toBeDefined();
+    });
+
+    it('re-opens in expanded DECISION mode if history exists', async () => {
+        const { rerender } = render(<SpoonOSInterface isOpen={true} onClose={() => { }} selectedPoint={null} onAction={() => { }} />);
+
+        // 1. Send a message to populate history
+        const input = screen.getByRole('textbox');
+        fireEvent.change(input, { target: { value: 'Turkey' } });
+        fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' });
+
         await waitFor(() => {
-            const riskLevel = screen.getByText(/CRITICAL/i);
-            expect(riskLevel).toBeDefined();
+            expect(screen.getByText('GaiaLink Agent')).toBeDefined();
         });
+
+        // 2. Close interface
+        rerender(<SpoonOSInterface isOpen={false} onClose={() => { }} selectedPoint={null} onAction={() => { }} />);
+
+        // 3. Re-open interface
+        rerender(<SpoonOSInterface isOpen={true} onClose={() => { }} selectedPoint={null} onAction={() => { }} />);
+
+        // Should be in DECISION mode (expanded) not LISTENING
+        // Check for expanded header
+        await waitFor(() => {
+            expect(screen.getByText('GaiaLink Agent')).toBeDefined();
+        });
+
+        // And history should be visible
+        expect(screen.getByText(/Since you asked about Turkey/i)).toBeDefined();
     });
 });

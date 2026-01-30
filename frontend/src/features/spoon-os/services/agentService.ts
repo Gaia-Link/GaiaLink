@@ -93,6 +93,31 @@ export const MockAgentResponses: Record<string, AgentResponse> = {
         }
     },
 
+    // Scenario 3: Intent Donate (100 USDC)
+    'donate_intent': {
+        message: "I have prepared a DIRECT donation of 100 USDC to Turkey. Please sign the transaction to proceed.",
+        action_taken: "execute_donation",
+        ui_hints: {
+            mode: "SIGNATURE",
+            display_data: {
+                title: "Turkey-Syria Earthquake",
+                badge_text: "Donation Ready",
+                badge_color: "green",
+                risk_level: "CRITICAL"
+            },
+            actions: [
+                { label: "Sign Transaction", type: "sign_transaction", icon: "pen-tool" }
+            ]
+        },
+        transaction_payload: {
+            to: "0xDem0VaultAddressForTurkeyRelief00000000",
+            value: "0",
+            data: "0xa9059cbb000000000000000000000000...", // mock ERC20 transfer(to, 100)
+            chainId: 11155111,
+            intent_summary: "Donate 100 USDC via DIRECT Vault"
+        }
+    },
+
     // Default / Generic
     'default': {
         message: "I am ready to assist. You can ask me to verify a crisis, donate funds, or create a new proposal for an unlisted region.",
@@ -105,29 +130,41 @@ export const MockAgentResponses: Record<string, AgentResponse> = {
 };
 
 /**
- * Simulates calling the Python Agent API.
- * In a real app, this would POST to /api/agent/chat
+ * Calls the Python Agent API.
  */
 export async function sendMessageToAgent(message: string, context?: any): Promise<AgentResponse> {
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    try {
+        const res = await fetch('http://localhost:8000/api/chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                message: message,
+                context: context || {}
+            }),
+        });
 
-    const lowerMsg = message.toLowerCase();
+        if (!res.ok) {
+            throw new Error(`Server error: ${res.status}`);
+        }
 
-    // Simple keyword matching for Mock Logic
-    if (lowerMsg.includes('turkey') || lowerMsg.includes('quake')) {
-        return MockAgentResponses['turkey'];
+        const data = await res.json();
+        return data as AgentResponse;
+
+    } catch (error) {
+        console.error("Agent API connection failed, falling back to specific mocks or error:", error);
+
+        // Fallback for demo if server is down
+        const lowerMsg = message.toLowerCase();
+        if (lowerMsg.includes('100') || (lowerMsg.includes('donate') && lowerMsg.includes('usdc'))) {
+            return MockAgentResponses['donate_intent'];
+        }
+
+        return {
+            message: "I'm having trouble connecting to my brain (Python Backend). Please ensure the agent server is running on port 8000.",
+            action_taken: "error",
+            ui_hints: { mode: "IDLE" }
+        };
     }
-
-    // Step 1: Ask for Morroco Proposal
-    if (lowerMsg.includes('morocco') || lowerMsg.includes('proposal')) {
-        return MockAgentResponses['morocco_ask_type'];
-    }
-
-    // Step 2: Confirm Vault Type -> Ready to Sign
-    if (lowerMsg.includes('yield') || lowerMsg.includes('direct') || lowerMsg.includes('vault')) {
-        return MockAgentResponses['morocco_ready_sign'];
-    }
-
-    return MockAgentResponses['default'];
 }
