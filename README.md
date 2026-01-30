@@ -1,43 +1,56 @@
 # Gaia Link (蓋亞連結)
 
-> 基於 3D 地球的「人道救援協作網絡」
+> 基於 3D 地球的「人道救援協作網絡」— 讓救援需求可視化，讓捐贈無損化
 
 ---
 
-## 核心願景
+## 核心願景 (Vision)
 
-**一句話介紹：**
+**從「聽說哪裡有災情」到「看見哪裡缺資源」**
 
-Gaia Link 是一個基於 3D 地球的**「人道救援協作網絡」**。我們將宏觀的危機數據 (Polymarket) 與微觀的現場聲音 (Geo-Forum) 結合，並由 **SpoonOS AI Agent** 負責驗證資訊真實性與執行無感支付。
+傳統的救援資訊往往是平面的文字報導，使用者難以直觀感受需求的緊急程度與規模。Gaia Link 透過 **3D 地球可視化**，用「光點」的密度與顏色來呈現捐款需求與緊急程度。
 
-**核心邏輯：**
-
-- **看見 (Visualize):** 用 3D 地球打破資訊孤島，直觀展示哪裡「紅了」（有危機）。
-- **連結 (Connect):** 點擊紅區進入「地圖論壇」，看到當地人的真實求救與照片。
-- **行動 (Action):** SpoonOS Agent 實時驗證貼文真偽，並協助用戶一鍵跨鏈捐贈。
+- **可視化 (Visualization):** 使用者能一眼看出哪些地區「點點特別多」（需求大、資源缺），哪些地區相對穩定，打破資訊不對稱。
+- **無感協作 (Collaboration):** 透過 **SpoonOS** 實現意圖支付與智能調研，降低 Web3 使用門檻。
 
 ---
 
 ## 產品三大支柱
 
-### A. 視覺層：The Living Globe (前端核心)
+### 1. 視覺層：3D 需求地球 (The Living Globe)
+將抽象的危機數據轉化為直觀的 3D 視覺體驗：
+- **紅點聚落:** 代表緊急救援需求，點越密代表該區資源缺口越大。
+- **直觀導航:** 旋轉地球查看全球災情，不再受限於單一新聞視角。
+- **即時反饋:** 捐贈後的資金流向也會在地圖上呈現，讓愛心「看得見」。
 
-- **上帝視角：** 使用 `Three.js` / `react-globe.gl`
-- **數據分層：**
-  - Red Zones (熱區): 來自 Polymarket 的災難預測數據
-  - Blue Bubbles (聲音): 論壇貼文的聚合氣泡
-  - Green Nodes (組織): 經過驗證的救援 DAO 或公益錢包
+### 2. 交互層：論壇與提案 (Geo-Forum & Proposals)
+- **情境討論:** 每個災區都有專屬討論區，結合新聞與當地回報，讓社群判斷是否需要開啟新的捐贈池。
+- **无需许可提案 (Permissionless):** 任何人都可以針對未被覆蓋的災情發起「募資提案」（Layer 2 機制）。
 
-### B. 交互層：The Geo-Forum (論壇與社群)
+### 3. 智能層：SpoonOS Agent (大腦與金流)
+利用 SpoonOS 強大的 Agent 能力，解決支付與信任問題：
+- **意圖支付 (Intent Payment):** 使用者無需理解複雜鏈上操作，只需表達「我想捐款給土耳其」，Agent 自動處理穩定幣支付與路徑。
+- **智能調研 (AI Research):** Agent 自動整理災情新聞、驗證真實性，幫助使用者決策「這個提案是否值得捐助」。
+- **X402 標準:** 支援 X402 協議，實現 Agent 自主支付與授權。
 
-- **形式：** 覆蓋在地球上的 Overlay（側邊欄或懸浮窗）
-- **內容：** 「現場照片」、「需求清單」、「情況更新」
-- **體驗：** 就像在 Google Maps 上看餐廳評論，但這裡是看災區需求
+---
 
-### C. 智能層：SpoonOS Agent (大腦與手腳) - **本子專案**
+## 資金池架構 (The Vaults)
 
-- **角色 1 - 審計師 (Auditor):** 自動掃描 Polymarket 和新聞源，給出「資訊可信」或「疑似詐騙」的標籤
-- **角色 2 - 支付官 (Payer):** 負責後端的 Swap、Gas 費計算和轉帳，用戶只需確認意圖
+我們設計了「雙層架構」與「兩種模式」，兼顧靈活性與安全性。
+
+### 兩種捐贈模式
+1. **直接捐贈 (Direct):** 資金直接進入機構帳戶，用於即時救援。
+2. **無損捐贈 (No-Loss):** 資金存入 **Euler** 或 **Pendle** 的 Yield 模塊，僅將產生的利息捐贈給機構，本金保留給用戶。
+
+### 雙層建立機制 (Layer 1 & Layer 2)
+
+| 層級 | 發起人 | 機制 | 特點 |
+|------|--------|------|------|
+| **Layer 1 (機構層)** | 白名單機構 | **直接開池** | 機構經過驗證，可直接建立 Vault 接收捐款。適合大型已知組織 (如紅十字會)。 |
+| **Layer 2 (社群層)** | 任何使用者 | **提案制 (Proposal)** | 使用者針對特定地區/事件發起提案 -> 資金存入過渡池 -> **達標後自動執行開 Vault** -> 資金流向指定機構。若未達標則退款。 |
+
+> *註：本次黑客松中，機構與部分災情數據為 Mock 數據。*
 
 ---
 
@@ -45,10 +58,10 @@ Gaia Link 是一個基於 3D 地球的**「人道救援協作網絡」**。我�
 
 | Role | 負責人 | 職責 |
 |------|--------|------|
-| Role 1 | Frontend Wizard | 視覺與互動 (react-globe.gl, 論壇 UI) |
-| **Role 2** | **AI Engineer** | **SpoonOS Agent 邏輯 (本專案)** |
-| Role 3 | Data & Backend | 數據流與模擬 (Polymarket API) |
-| Role 4 | PM & Storyteller | 簡報與流程 |
+| Role 1 | Frontend Wizard | 視覺與互動 (Three.js, MapLibre, UI) |
+| **Role 2** | **AI Engineer** | **SpoonOS Agent 核心邏輯 (本專案)** |
+| Role 3 | Contract & Arch | 資金池合約 (Vaults) 與雙層架構設計 |
+| Role 4 | PM & Design | 產品邏輯與敘事 |
 
 ---
 
@@ -56,10 +69,10 @@ Gaia Link 是一個基於 3D 地球的**「人道救援協作網絡」**。我�
 
 | 項目 | 技術 |
 |------|------|
-| Frontend | Next.js, Three.js (react-globe.gl), Tailwind CSS |
-| AI Agent | SpoonOS SDK (LangChain/ReAct pattern) |
-| Data Source | Polymarket API (CLOB/Gamma), GDELT (Optional) |
-| Storage | JSON (MVP) / Arweave (Bonus) |
+| **Frontend** | Next.js 15, React-Three-Fiber (3D Globe), MapLibre |
+| **AI Agent** | **SpoonOS SDK**, LangChain, X402 Protocol |
+| **Contracts** | Solidity, Euler/Pendle (Yield Integration) |
+| **Data** | Polymarket (Mock/API), News API |
 
 ---
 
