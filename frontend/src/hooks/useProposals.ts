@@ -7,10 +7,13 @@ import { PROPOSAL_DESCRIPTIONS } from '@/lib/descriptions';
 
 export function useProposals() {
     // 1. Fetch all proposals in one bulk call
-    const { data: allProposals } = useReadContract({
+    const { data: allProposals, refetch } = useReadContract({
         address: PROPOSAL_MANAGER_ADDRESS,
         abi: GAIA_PROPOSAL_MANAGER_ABI,
         functionName: 'getAllProposals',
+        query: {
+            refetchInterval: 5000, // Refetch every 5 seconds to pick up new proposals
+        }
     });
 
     // 2. Prepare calls for charities (keeping this as is for now)

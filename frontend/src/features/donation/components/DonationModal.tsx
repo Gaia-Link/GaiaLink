@@ -77,6 +77,13 @@ export default function DonationModal({ isOpen, onClose, point }: DonationModalP
 
     const handleDonate = async () => {
         if (!amount || !point) return;
+
+        // Safety check for temp IDs
+        if (point.id.toString().startsWith('temp-')) {
+            alert("This vault is still confirming on the blockchain. Please wait a moment and try again.");
+            return;
+        }
+
         setLastAction('DEPOSIT');
         setStep('PROCESSING');
 

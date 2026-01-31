@@ -84,7 +84,12 @@ export default function Overlay({ point, onClose, onDonate }: OverlayProps) {
                                 <span className="text-sm ml-1 text-gray-500">USDC</span>
                             </p>
 
-                            {point.hasVault ? (
+                            {point.id.toString().startsWith('temp-') ? (
+                                <div className="w-full bg-yellow-500/20 text-yellow-400 font-bold py-4 rounded-xl border border-yellow-500/30 flex items-center justify-center gap-2 animate-pulse cursor-not-allowed">
+                                    <ShieldAlert size={20} />
+                                    Confirming Deployment...
+                                </div>
+                            ) : point.hasVault ? (
                                 <button
                                     onClick={() => onDonate?.(point)}
                                     className="w-full bg-white text-black font-bold py-4 rounded-xl hover:bg-gray-200 transition-all flex items-center justify-center gap-2 group"
