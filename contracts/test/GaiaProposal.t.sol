@@ -102,4 +102,25 @@ contract GaiaProposalTest is Test {
         
         assertEq(token.balanceOf(donor1), 1000e18);
     }
+
+    function testStandaloneVaultCreation() public {
+        // 1. Unauthorized User (Fail)
+        vm.prank(proposer);
+        vm.expectRevert("Caller not authorized for this charity");
+        manager.createCharityVault(charityId, token, false);
+
+        // 2. Authorized Member (Success - Direct)
+        vm.startPrank(charityMember);
+        address dVault = manager.createCharityVault(charityId, token, false);
+        assertTrue(dVault != address(0));
+        
+        // 3. Authorized Member (Success - NoLoss)
+        address nVault = manager.createCharityVault(charityId, token, true);
+        assertTrue(nVault != address(0));
+        
+        // Verify nVault has a strategy
+        NoLossVault nv = NoLossVault(nVault);
+        assertTrue(address(nv.strategy()) != address(0));
+        vm.stopPrank();
+    }
 }

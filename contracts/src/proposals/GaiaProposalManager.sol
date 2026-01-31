@@ -62,6 +62,7 @@ contract GaiaProposalManager is Ownable {
     event FundsDeposited(uint256 indexed proposalId, address indexed user, uint256 amount, bool isNoLoss);
     event FundsWithdrawn(uint256 indexed proposalId, address indexed user, uint256 directAmount, uint256 noLossAmount);
     event ProposalAccepted(uint256 indexed proposalId, address directVault, address noLossVault);
+    event CharityVaultDeployed(uint256 indexed charityId, address vault, bool isNoLoss);
 
     constructor(address _owner, address _charityRegistry) Ownable(_owner) {
         charityRegistry = GaiaCharityRegistry(_charityRegistry);
@@ -196,5 +197,32 @@ contract GaiaProposalManager is Ownable {
         p.asset.safeTransfer(msg.sender, total);
 
         emit FundsWithdrawn(_proposalId, msg.sender, directAmt, noLossAmt);
+    }
+
+    /**
+     * @dev Allow authorized Charity Members to deploy standalone Vaults (e.g. for general funds).
+     */
+    function createCharityVault(uint256 _charityId, IERC20 _asset, bool _isNoLoss) external returns (address vault) {
+        // 1. Permission Check
+        require(charityRegistry.isMember(_charityId, msg.sender), "Caller not authorized for this charity");
+
+        // 2. Get Charity Admin (Vault Owner Candidate)
+        (, address charityAdmin,) = charityRegistry.getCharity(_charityId);
+
+        if (_isNoLoss) {
+            // Strategy
+            MockAaveStrategy strategy = new MockAaveStrategy(address(_asset), address(this));
+            // Vault
+            NoLossVault nVault = new NoLossVault(_asset, charityAdmin, owner(), owner(), address(strategy));
+            // Transfer ownership of Strategy to Vault
+            strategy.transferOwnership(address(nVault));
+            vault = address(nVault);
+        } else {
+            // Direct Vault
+            DirectVault dVault = new DirectVault(_asset, charityAdmin, owner());
+            vault = address(dVault);
+        }
+
+        emit CharityVaultDeployed(_charityId, vault, _isNoLoss);
     }
 }
