@@ -18,6 +18,8 @@ export const metadata: Metadata = {
     description: "Global Humanitarian Aid Network",
 };
 
+import { Web3Provider } from "@/providers/Web3Provider";
+
 export default function RootLayout({
     children,
 }: Readonly<{
@@ -28,7 +30,9 @@ export default function RootLayout({
             <body
                 className={`${geistSans.variable} ${geistMono.variable} antialiased`}
             >
-                {children}
+                <Web3Provider>
+                    {children}
+                </Web3Provider>
             </body>
         </html>
     );

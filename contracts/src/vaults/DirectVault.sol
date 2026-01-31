@@ -12,6 +12,10 @@ contract DirectVault is IGaiaVault, Ownable {
     IERC20 public immutable underlying;
     address public immutable charityAddress;
     mapping(address => bool) public isWhitelisted;
+    
+    // Donation Tracking
+    mapping(address => uint256) public donors;
+    uint256 public totalDonated;
 
     constructor(IERC20 _underlying, address _charity, address _owner) Ownable(_owner) {
         underlying = _underlying;
@@ -24,6 +28,8 @@ contract DirectVault is IGaiaVault, Ownable {
      */
     function deposit(uint256 amount) external override {
         underlying.safeTransferFrom(msg.sender, address(this), amount);
+        donors[msg.sender] += amount;
+        totalDonated += amount;
         emit Deposited(msg.sender, amount);
     }
 

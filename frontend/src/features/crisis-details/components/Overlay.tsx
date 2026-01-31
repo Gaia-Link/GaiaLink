@@ -1,7 +1,7 @@
 'use client';
 
 import type { CrisisPoint } from '@/lib/mockData';
-import { X, MessageCircle, Heart, ShieldCheck, ShieldAlert } from 'lucide-react';
+import { X, Heart, ShieldCheck, ShieldAlert } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getVerificationStatus, formatLocation } from '../utils/verificationUtils';
 
@@ -9,10 +9,9 @@ export interface OverlayProps {
     point: CrisisPoint | null;
     onClose: () => void;
     onDonate?: (point: CrisisPoint) => void;
-    onDiscuss?: (point: CrisisPoint) => void;
 }
 
-export default function Overlay({ point, onClose, onDonate, onDiscuss }: OverlayProps) {
+export default function Overlay({ point, onClose, onDonate }: OverlayProps) {
     if (!point) return null;
 
     const verification = getVerificationStatus(point);
@@ -39,7 +38,8 @@ export default function Overlay({ point, onClose, onDonate, onDiscuss }: Overlay
                     <div>
                         <div className="flex items-center gap-2 mb-2">
                             <span className={`px-2 py-1 rounded text-xs font-bold uppercase tracking-wider ${point.type === 'crisis' ? 'bg-red-500/20 text-red-500' :
-                                    point.type === 'voice' ? 'bg-blue-500/20 text-blue-400' :
+                                point.type === 'voice' ? 'bg-blue-500/20 text-blue-400' :
+                                    point.type === 'warning' ? 'bg-yellow-500/20 text-yellow-500' :
                                         'bg-green-500/20 text-green-400'
                                 }`}>
                                 {point.type}
@@ -73,22 +73,40 @@ export default function Overlay({ point, onClose, onDonate, onDiscuss }: Overlay
                         </p>
                     </div>
 
-                    {/* Action Buttons */}
-                    <div className="flex gap-4 pt-4">
-                        <button
-                            onClick={() => onDonate?.(point)}
-                            className="flex-1 bg-white text-black font-bold py-3 px-6 rounded-full hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"
-                        >
-                            <Heart size={20} className="text-red-500" />
-                            Donate
-                        </button>
-                        <button
-                            onClick={() => onDiscuss?.(point)}
-                            className="flex-1 bg-white/10 text-white font-bold py-3 px-6 rounded-full hover:bg-white/20 transition-colors flex items-center justify-center gap-2"
-                        >
-                            <MessageCircle size={20} />
-                            Discuss
-                        </button>
+                    {/* Funding & Action Footer */}
+                    <div className="space-y-6">
+                        <div className="text-center p-6 border border-white/10 rounded-2xl bg-white/5 backdrop-blur-sm">
+                            <p className="text-gray-400 text-xs uppercase tracking-widest mb-1">
+                                {point.hasVault ? "Vault Balance" : "Pledged / Waiting"}
+                            </p>
+                            <p className="text-4xl font-mono font-bold text-green-400 mb-4">
+                                ${(Number(point.raised || 0) / 1e18).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                <span className="text-sm ml-1 text-gray-500">USDC</span>
+                            </p>
+
+                            {point.hasVault ? (
+                                <button
+                                    onClick={() => onDonate?.(point)}
+                                    className="w-full bg-white text-black font-bold py-4 rounded-xl hover:bg-gray-200 transition-all flex items-center justify-center gap-2 group"
+                                >
+                                    <Heart size={20} className="text-red-500 group-hover:scale-125 transition-transform" />
+                                    Donate More
+                                </button>
+                            ) : (
+                                <div className="space-y-3">
+                                    <button
+                                        onClick={() => onDonate?.(point)}
+                                        className="w-full bg-blue-600 text-white font-bold py-4 rounded-xl hover:bg-blue-500 transition-all flex items-center justify-center gap-2"
+                                    >
+                                        <Heart size={20} className="text-white" />
+                                        Support & Open Vault
+                                    </button>
+                                    <p className="text-[10px] text-gray-500 leading-relaxed italic">
+                                        Funds are held securely by the Gaia Contract. Once an institution verifies and accepts this crisis, the vault will be deployed and funds transferred for immediate aid.
+                                    </p>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             </motion.div>

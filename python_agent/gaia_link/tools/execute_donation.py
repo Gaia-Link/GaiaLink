@@ -4,16 +4,21 @@ execute_donation 工具 - 執行捐款交易
 基於 SpoonOS BaseTool 實現，支援 Mock 和真實區塊鏈交易
 """
 
+import re
 from typing import Optional
 
 from spoon_ai.tools.base import BaseTool
 
 from gaia_link.config import get_blockchain_service, get_settings
 from gaia_link.services.base import BlockchainService
+from gaia_link.services.sepolia_blockchain import GAIA_CONTRACTS
 
 
 # 支援的代幣列表
 SUPPORTED_TOKENS = ["USDC", "USDT", "ETH", "DAI"]
+
+# ERC20 Transfer Selector (a9059cbb)
+ERC20_TRANSFER_SELECTOR = "0xa9059cbb"
 
 # 代幣對美元的參考匯率
 TOKEN_USD_RATES = {
@@ -37,9 +42,6 @@ TOKEN_DECIMALS = {
     "DAI": 18,
     "ETH": 18,
 }
-
-# ERC20 transfer function selector: keccak256("transfer(address,uint256)")[:4]
-ERC20_TRANSFER_SELECTOR = "0xa9059cbb"
 
 
 def encode_erc20_transfer(recipient: str, amount: float, decimals: int = 6) -> str:
@@ -134,7 +136,7 @@ class ExecuteDonationTool(BaseTool):
         Args:
             amount: 捐款金額
             token: 代幣類型
-            recipient_address: 接收地址 (若無則使用預設測試 Vault)
+            recipient_address: 接收地址 (若無則使用 GAIA_CONTRACTS 預設地址)
             vault_type: 資金池類型 (DIRECT/YIELD)
         """
         # 輸入驗證
@@ -146,10 +148,9 @@ class ExecuteDonationTool(BaseTool):
                 f"Unsupported token: {token}. Supported: {', '.join(SUPPORTED_TOKENS)}"
             )
 
-        # 若未提供地址，使用預設的 Demo Vault 地址
-        # 注意：請在部署前替換為你自己的 Sepolia 測試錢包
+        # 若未提供地址，使用 GAIA_CONTRACTS 中的 ProposalManager 地址
         if not recipient_address:
-            recipient_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f5bE91"  # Demo Vault
+            recipient_address = GAIA_CONTRACTS.get("ProposalManager", "0x742d35Cc6634C0532925a3b844Bc9e7595f5bE91")
         else:
             # 驗證地址格式 (基本驗證)
             if not self._is_valid_eth_address(recipient_address):
@@ -219,7 +220,6 @@ class ExecuteDonationTool(BaseTool):
         Returns:
             True 如果地址格式有效
         """
-        import re
         if not address:
             return False
         # 以太坊地址: 0x + 40 hex characters

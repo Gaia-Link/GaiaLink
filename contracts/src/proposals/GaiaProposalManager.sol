@@ -130,6 +130,36 @@ contract GaiaProposalManager is Ownable {
         emit FundsDeposited(_proposalId, msg.sender, _amount, _isNoLoss);
     }
 
+    function getAllProposals() external view returns (Proposal[] memory) {
+        Proposal[] memory allProposals = new Proposal[](nextProposalId);
+        for (uint256 i = 0; i < nextProposalId; i++) {
+            allProposals[i] = proposals[i];
+        }
+        return allProposals;
+    }
+
+    struct PortfolioItem {
+        uint256 proposalId;
+        uint256 directAmount;
+        uint256 noLossAmount;
+    }
+
+    /**
+     * @dev Bulk fetch user balances to avoid massive Multicall payloads.
+     */
+    function getUserPortfolio(address _user) external view returns (PortfolioItem[] memory) {
+        PortfolioItem[] memory items = new PortfolioItem[](nextProposalId);
+        for (uint256 i = 0; i < nextProposalId; i++) {
+            UserBalance memory b = userBalances[i][_user];
+            items[i] = PortfolioItem({
+                proposalId: i,
+                directAmount: b.directAmount,
+                noLossAmount: b.noLossAmount
+            });
+        }
+        return items;
+    }
+
     /**
      * @dev Institution accepts the proposal. Restricted to Members of the specific Charity.
      */

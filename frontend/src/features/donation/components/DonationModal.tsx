@@ -4,6 +4,21 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ArrowRight, ShieldCheck, Wallet, Coins, TrendingUp } from 'lucide-react';
 import { CrisisPoint } from '@/lib/mockData';
+import { useWriteContract, useAccount, useWaitForTransactionReceipt, useReadContract, useSimulateContract } from 'wagmi';
+import { parseUnits } from 'viem';
+
+import { PROPOSAL_MANAGER_ADDRESS } from '@/lib/constants';
+
+// Basic ABI for Approve
+const ERC20_ABI = [
+    { name: 'approve', type: 'function', inputs: [{ name: 'spender', type: 'address' }, { name: 'amount', type: 'uint256' }], outputs: [{ name: '', type: 'bool' }], stateMutability: 'nonpayable' },
+    { name: 'allowance', type: 'function', inputs: [{ name: 'owner', type: 'address' }, { name: 'spender', type: 'address' }], outputs: [{ name: '', type: 'uint256' }], stateMutability: 'view' }
+] as const;
+
+// ABI for ProposalManager.depositToProposal
+const MANAGER_ABI = [
+    { name: 'depositToProposal', type: 'function', inputs: [{ name: '_proposalId', type: 'uint256' }, { name: '_amount', type: 'uint256' }, { name: '_isNoLoss', type: 'bool' }], outputs: [], stateMutability: 'nonpayable' }
+] as const;
 
 interface DonationModalProps {
     isOpen: boolean;
@@ -16,20 +31,92 @@ type DonationType = 'DIRECT' | 'YIELD';
 export default function DonationModal({ isOpen, onClose, point }: DonationModalProps) {
     const [amount, setAmount] = useState<string>('');
     const [donationType, setDonationType] = useState<DonationType>('DIRECT');
-    const [isSuccess, setIsSuccess] = useState(false);
+    const [step, setStep] = useState<'IDLE' | 'PROCESSING' | 'SUCCESS'>('IDLE');
+    const [lastAction, setLastAction] = useState<'APPROVE' | 'DEPOSIT' | null>(null);
+
+    const { address } = useAccount();
+    const { data: hash, writeContractAsync, isPending, reset } = useWriteContract();
+    const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({ hash });
+
+    const assetAddress = point?.asset as `0x${string}` | undefined;
+
+    // Check Allowance
+    const { data: allowance, refetch: refetchAllowance } = useReadContract({
+        address: assetAddress,
+        abi: ERC20_ABI,
+        functionName: 'allowance',
+        args: address ? [address, PROPOSAL_MANAGER_ADDRESS as `0x${string}`] : undefined,
+        query: {
+            enabled: !!address && !!assetAddress,
+        }
+    });
+
+    const val = amount ? parseUnits(amount, 18) : BigInt(0);
+    const needsApproval = allowance !== undefined ? allowance < val : true;
+
+    // Handle Approve
+    const handleApprove = async () => {
+        if (!assetAddress) return;
+        setLastAction('APPROVE');
+        setStep('PROCESSING');
+        try {
+            await writeContractAsync({
+                address: assetAddress,
+                abi: ERC20_ABI,
+                functionName: 'approve',
+                args: [PROPOSAL_MANAGER_ADDRESS as `0x${string}`, val]
+            });
+        } catch (error) {
+            console.error("Approval failed:", error);
+            setStep('IDLE');
+            setLastAction(null);
+        }
+    };
 
     if (!isOpen || !point) return null;
 
-    const handleDonate = () => {
-        // Simulate transaction
-        setTimeout(() => {
-            setIsSuccess(true);
-        }, 1000);
+    const handleDonate = async () => {
+        if (!amount || !point) return;
+        setLastAction('DEPOSIT');
+        setStep('PROCESSING');
+
+        try {
+            const pid = parseInt(point.id) || 0;
+            const isNoLoss = donationType === 'YIELD';
+
+            await writeContractAsync({
+                address: PROPOSAL_MANAGER_ADDRESS,
+                abi: MANAGER_ABI,
+                functionName: 'depositToProposal',
+                args: [BigInt(pid), val, isNoLoss]
+            });
+        } catch (e) {
+            console.error(e);
+            setStep('IDLE');
+        }
     };
 
+    // Watch for confirmation
+    if (isConfirmed && step === 'PROCESSING') {
+        if (lastAction === 'APPROVE') {
+            // Approval done. Refetch allowance, reset step to IDLE so user can click Donate
+            refetchAllowance().then(() => {
+                setStep('IDLE');
+                setLastAction(null);
+                reset(); // Reset wagmi state
+            });
+        } else if (lastAction === 'DEPOSIT') {
+            // Deposit done. Show success.
+            setStep('SUCCESS');
+            setLastAction(null);
+        }
+    }
+
     const handleClose = () => {
-        setIsSuccess(false);
+        setStep('IDLE');
         setAmount('');
+        setLastAction(null);
+        reset();
         onClose();
     }
 
@@ -43,7 +130,7 @@ export default function DonationModal({ isOpen, onClose, point }: DonationModalP
             >
                 <div className="w-full max-w-md bg-[#111] border border-white/10 rounded-2xl shadow-2xl overflow-hidden relative">
 
-                    {isSuccess ? (
+                    {step === 'SUCCESS' ? (
                         <div className="p-8 flex flex-col items-center justify-center text-center space-y-4">
                             <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mb-2">
                                 <ShieldCheck className="w-10 h-10 text-green-500" />
@@ -80,8 +167,8 @@ export default function DonationModal({ isOpen, onClose, point }: DonationModalP
                                         <button
                                             onClick={() => setDonationType('DIRECT')}
                                             className={`p-4 rounded-xl border flex flex-col items-center gap-2 transition ${donationType === 'DIRECT'
-                                                    ? 'bg-blue-600/20 border-blue-500 text-blue-400'
-                                                    : 'bg-white/5 border-transparent text-gray-400 hover:bg-white/10'
+                                                ? 'bg-blue-600/20 border-blue-500 text-blue-400'
+                                                : 'bg-white/5 border-transparent text-gray-400 hover:bg-white/10'
                                                 }`}
                                         >
                                             <Coins size={24} />
@@ -90,8 +177,8 @@ export default function DonationModal({ isOpen, onClose, point }: DonationModalP
                                         <button
                                             onClick={() => setDonationType('YIELD')}
                                             className={`p-4 rounded-xl border flex flex-col items-center gap-2 transition relative overflow-hidden ${donationType === 'YIELD'
-                                                    ? 'bg-purple-600/20 border-purple-500 text-purple-400'
-                                                    : 'bg-white/5 border-transparent text-gray-400 hover:bg-white/10'
+                                                ? 'bg-purple-600/20 border-purple-500 text-purple-400'
+                                                : 'bg-white/5 border-transparent text-gray-400 hover:bg-white/10'
                                                 }`}
                                         >
                                             <div className="absolute top-1 right-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-[10px] px-1.5 py-0.5 rounded font-bold">
@@ -139,13 +226,43 @@ export default function DonationModal({ isOpen, onClose, point }: DonationModalP
                                     </div>
                                 </div>
 
+                                {/* Mint Option for Testing */}
+                                <div className="flex items-center justify-between p-3 rounded-lg bg-yellow-900/10 border border-yellow-900/30 mb-4">
+                                    <div className="text-xs text-yellow-500/80">
+                                        Running on Testnet? Need Test Tokens?
+                                    </div>
+                                    <button
+                                        onClick={async () => {
+                                            if (!assetAddress || !address) return;
+                                            try {
+                                                await writeContractAsync({
+                                                    address: assetAddress,
+                                                    abi: [...ERC20_ABI, { name: 'mint', type: 'function', inputs: [{ name: 'to', type: 'address' }, { name: 'amount', type: 'uint256' }], outputs: [], stateMutability: 'nonpayable' }],
+                                                    functionName: 'mint',
+                                                    args: [address, parseUnits('1000', 18)]
+                                                });
+                                            } catch (e) {
+                                                console.error("Mint failed:", e);
+                                            }
+                                        }}
+                                        className="px-3 py-1 bg-yellow-600/20 hover:bg-yellow-600/40 text-yellow-500 text-xs font-bold rounded border border-yellow-600/50 transition"
+                                    >
+                                        Mint 1000 USDC
+                                    </button>
+                                </div>
+
                                 <button
-                                    onClick={handleDonate}
-                                    disabled={!amount}
+                                    onClick={needsApproval ? handleApprove : handleDonate}
+                                    disabled={!amount || step === 'PROCESSING' || isPending || isConfirming}
                                     className="w-full bg-white text-black font-bold py-4 rounded-xl hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center justify-center gap-2"
                                 >
-                                    <span>Confirm {donationType === 'YIELD' ? 'Deposit' : 'Donation'}</span>
-                                    <ArrowRight size={18} />
+                                    <span>
+                                        {step === 'PROCESSING' ? (lastAction === 'APPROVE' ? 'Approving USDC...' : 'Confirming Donation...') :
+                                            needsApproval ? `Approve USDC` : `Confirm ${donationType === 'YIELD' ? 'Deposit' : 'Donation'}`
+                                        }
+                                    </span>
+                                    {step !== 'PROCESSING' && <ArrowRight size={18} />}
+                                    {step === 'PROCESSING' && <div className="animate-spin h-4 w-4 border-2 border-black border-t-transparent rounded-full ml-2"></div>}
                                 </button>
                             </div>
                         </>
