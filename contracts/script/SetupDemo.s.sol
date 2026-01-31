@@ -80,7 +80,67 @@ contract SetupDemo is Script {
         // Lat: 5.152 -> 51520, Lng: 46.199 -> 461990
         manager.createProposal(2, token, "Horn of Africa Drought", "ipfs://somalia", 51520, 461990, 4, 30 days);
 
-        console2.log("Seeded 10 Real-world Proposals from backend_data");
+        // 11. Tigray Post-Conflict Recovery (HIGH)
+        // Lat: 14.032 -> 140320, Lng: 38.316 -> 383160
+        manager.createProposal(2, token, "Tigray Post-Conflict Recovery", "ipfs://tigray", 140320, 383160, 3, 30 days);
+
+        // 12. Maui Wildfire Restoration (MODERATE)
+        // Lat: 20.885 -> 208850, Lng: -156.678 -> -1566780
+        manager.createProposal(1, token, "Maui Wildfire Restoration", "ipfs://maui", 208850, -1566780, 5, 30 days);
+
+        // 13. Canadian Wildfire Response (HIGH)
+        // Lat: 55.000 -> 550000, Lng: -100.000 -> -1000000
+        manager.createProposal(2, token, "Canadian Wildfire Response", "ipfs://canada", 550000, -1000000, 5, 30 days);
+
+        // 14. Amazon Rainforest Conservation (HIGH)
+        // Lat: -3.465 -> -34650, Lng: -62.215 -> -622150
+        manager.createProposal(1, token, "Amazon Rainforest Conservation", "ipfs://amazon", -34650, -622150, 6, 30 days);
+
+        // 15. Australia Bushfire Preparedness (MODERATE)
+        // Lat: -33.868 -> -338680, Lng: 151.209 -> 1512090
+        manager.createProposal(2, token, "Australia Bushfire Preparedness", "ipfs://australia", -338680, 1512090, 5, 30 days);
+
+        // 16. Japan Seismic Risk Prep (MODERATE)
+        // Lat: 35.676 -> 356760, Lng: 139.650 -> 1396500
+        manager.createProposal(1, token, "Japan Seismic Risk Prep", "ipfs://japan", 356760, 1396500, 1, 30 days);
+
+        // 17. California Water Resilience (MODERATE)
+        // Lat: 36.778 -> 367780, Lng: -119.417 -> -1194170
+        manager.createProposal(2, token, "California Water Resilience", "ipfs://california", 367780, -1194170, 4, 30 days);
+
+        // 18. Bangladesh Cyclone Shelters (HIGH)
+        // Lat: 23.685 -> 236850, Lng: 90.356 -> 903560
+        manager.createProposal(1, token, "Bangladesh Cyclone Shelters", "ipfs://bangladesh", 236850, 903560, 2, 30 days);
+
+        // 19. Haiti Medical & Food Aid (CRITICAL)
+        // Lat: 18.594 -> 185940, Lng: -72.307 -> -723070
+        manager.createProposal(2, token, "Haiti Medical & Food Aid", "ipfs://haiti", 185940, -723070, 3, 30 days);
+
+        // 20. Venezuelan Migrant Support (HIGH)
+        // Lat: 6.423 -> 64230, Lng: -66.589 -> -665890
+        manager.createProposal(1, token, "Venezuelan Migrant Support", "ipfs://venezuela", 64230, -665890, 3, 30 days);
+
+        // 21. Philippines Super Typhoon Rai Relief (HIGH)
+        // Lat: 14.599 -> 145990, Lng: 120.984 -> 1209840
+        manager.createProposal(2, token, "Philippines Typhoon Relief", "ipfs://philippines", 145990, 1209840, 2, 30 days);
+
+        // 22. Mt. Semeru Eruption Relief (HIGH)
+        // Lat: -8.108 -> -81080, Lng: 112.922 -> 1129220
+        manager.createProposal(1, token, "Mt. Semeru Eruption Relief", "ipfs://indonesia", -81080, 1129220, 1, 30 days);
+
+        // 23. Iceland Grindavik Housing (MODERATE)
+        // Lat: 63.842 -> 638420, Lng: -22.438 -> -224380
+        manager.createProposal(2, token, "Iceland Grindavik Housing", "ipfs://iceland", 638420, -224380, 1, 30 days);
+
+        // 24. Chile Valparaiso Fire Recovery (HIGH)
+        // Lat: -33.047 -> -330470, Lng: -71.612 -> -716120
+        manager.createProposal(1, token, "Chile Valparaiso Fire Recovery", "ipfs://chile", -330470, -716120, 5, 30 days);
+
+        // 25. Myanmar Emergency Medical Aid (CRITICAL)
+        // Lat: 21.916 -> 219160, Lng: 95.956 -> 959560
+        manager.createProposal(2, token, "Myanmar Emergency Medical Aid", "ipfs://myanmar", 219160, 959560, 3, 30 days);
+
+        console2.log("Seeded 25 Real-world Proposals from backend_data");
 
         vm.stopBroadcast();
     }

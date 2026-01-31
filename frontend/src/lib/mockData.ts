@@ -4,9 +4,10 @@ export interface CrisisPoint {
     lng: number;
     intensity: number; // 0 to 1
     label: string;
-    type: 'crisis' | 'voice' | 'node';
+    type: 'crisis' | 'voice' | 'node' | 'warning';
     description?: string;
     hasVault?: boolean;
+    asset?: string;
 }
 
 export const MOCK_DATA: CrisisPoint[] = [

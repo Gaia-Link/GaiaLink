@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
-import Overlay from '@/features/forum/components/Overlay';
+import Overlay from '@/features/crisis-details/components/Overlay';
 import SpoonOSInterface from '@/features/spoon-os/components/SpoonOSInterface';
 import DonationModal from '@/features/donation/components/DonationModal';
 import LivingGlobe from '@/features/globe/components/LivingGlobe';
@@ -48,10 +48,7 @@ export default function Home() {
     setIsDonationOpen(true);
   };
 
-  const handleDiscuss = (point: CrisisPoint) => {
-    // TODO: Implement discussion/forum logic
-    console.log('Discussing:', point.label);
-  };
+
 
   const handleSpoonAction = (action: string, data?: any) => {
     console.log('SpoonOS Action:', action, data);
@@ -129,7 +126,6 @@ export default function Home() {
         point={selectedPoint}
         onClose={() => setSelectedPoint(null)}
         onDonate={handleDonate}
-        onDiscuss={handleDiscuss}
       />
 
       <SpoonOSInterface

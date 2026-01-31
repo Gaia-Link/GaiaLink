@@ -21,6 +21,7 @@ export default function LivingGlobe({ data, onPointClick }: LivingGlobeProps) {
     const getMarkerColor = (point: CrisisPoint) => {
         if (point.type === 'voice') return '#4FD1C5'; // Teal for voice
         if (point.type === 'node') return '#63B3ED'; // Blue for nodes
+        if (point.type === 'warning') return '#F6E05E'; // Yellow for warnings
 
         // Crisis logic:
         if (point.hasVault) {

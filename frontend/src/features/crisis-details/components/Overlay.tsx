@@ -1,7 +1,7 @@
 'use client';
 
 import type { CrisisPoint } from '@/lib/mockData';
-import { X, MessageCircle, Heart, ShieldCheck, ShieldAlert } from 'lucide-react';
+import { X, Heart, ShieldCheck, ShieldAlert } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getVerificationStatus, formatLocation } from '../utils/verificationUtils';
 
@@ -9,10 +9,9 @@ export interface OverlayProps {
     point: CrisisPoint | null;
     onClose: () => void;
     onDonate?: (point: CrisisPoint) => void;
-    onDiscuss?: (point: CrisisPoint) => void;
 }
 
-export default function Overlay({ point, onClose, onDonate, onDiscuss }: OverlayProps) {
+export default function Overlay({ point, onClose, onDonate }: OverlayProps) {
     if (!point) return null;
 
     const verification = getVerificationStatus(point);
@@ -39,7 +38,8 @@ export default function Overlay({ point, onClose, onDonate, onDiscuss }: Overlay
                     <div>
                         <div className="flex items-center gap-2 mb-2">
                             <span className={`px-2 py-1 rounded text-xs font-bold uppercase tracking-wider ${point.type === 'crisis' ? 'bg-red-500/20 text-red-500' :
-                                    point.type === 'voice' ? 'bg-blue-500/20 text-blue-400' :
+                                point.type === 'voice' ? 'bg-blue-500/20 text-blue-400' :
+                                    point.type === 'warning' ? 'bg-yellow-500/20 text-yellow-500' :
                                         'bg-green-500/20 text-green-400'
                                 }`}>
                                 {point.type}
@@ -73,23 +73,13 @@ export default function Overlay({ point, onClose, onDonate, onDiscuss }: Overlay
                         </p>
                     </div>
 
-                    {/* Action Buttons */}
-                    <div className="flex gap-4 pt-4">
-                        <button
-                            onClick={() => onDonate?.(point)}
-                            className="flex-1 bg-white text-black font-bold py-3 px-6 rounded-full hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"
-                        >
-                            <Heart size={20} className="text-red-500" />
-                            Donate
-                        </button>
-                        <button
-                            onClick={() => onDiscuss?.(point)}
-                            className="flex-1 bg-white/10 text-white font-bold py-3 px-6 rounded-full hover:bg-white/20 transition-colors flex items-center justify-center gap-2"
-                        >
-                            <MessageCircle size={20} />
-                            Discuss
-                        </button>
-                    </div>
+                    <button
+                        onClick={() => onDonate?.(point)}
+                        className="bg-white text-black font-bold py-3 px-8 rounded-full hover:bg-gray-200 transition-colors flex items-center justify-center gap-2 mx-auto min-w-[200px]"
+                    >
+                        <Heart size={20} className="text-red-500" />
+                        Donate Now
+                    </button>
                 </div>
             </motion.div>
         </AnimatePresence>

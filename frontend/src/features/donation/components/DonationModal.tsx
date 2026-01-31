@@ -7,10 +7,7 @@ import { CrisisPoint } from '@/lib/mockData';
 import { useWriteContract, useAccount, useWaitForTransactionReceipt, useReadContract, useSimulateContract } from 'wagmi';
 import { parseUnits } from 'viem';
 
-// Hardcoded for Demo - in prod comes from env/config
-// Hardcoded for Demo - in prod comes from env/config
-const USDC_ADDRESS = "0x68B1D87F95878fE05B998F19b66F4baba5De1aed";
-const PROPOSAL_MANAGER_ADDRESS = "0xc6e7DF5E7b4f2A278906862b61205850344D4e7d";
+import { PROPOSAL_MANAGER_ADDRESS } from '@/lib/constants';
 
 // Basic ABI for Approve
 const ERC20_ABI = [
@@ -41,30 +38,33 @@ export default function DonationModal({ isOpen, onClose, point }: DonationModalP
     const { data: hash, writeContractAsync, isPending, reset } = useWriteContract();
     const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({ hash });
 
+    const assetAddress = point?.asset as `0x${string}` | undefined;
+
     // Check Allowance
     const { data: allowance, refetch: refetchAllowance } = useReadContract({
-        address: USDC_ADDRESS,
+        address: assetAddress,
         abi: ERC20_ABI,
         functionName: 'allowance',
-        args: address ? [address, PROPOSAL_MANAGER_ADDRESS] : undefined,
+        args: address ? [address, PROPOSAL_MANAGER_ADDRESS as `0x${string}`] : undefined,
         query: {
-            enabled: !!address,
+            enabled: !!address && !!assetAddress,
         }
     });
 
     const val = amount ? parseUnits(amount, 18) : BigInt(0);
-    const needsApproval = allowance ? allowance < val : true;
+    const needsApproval = allowance !== undefined ? allowance < val : true;
 
     // Handle Approve
     const handleApprove = async () => {
+        if (!assetAddress) return;
         setLastAction('APPROVE');
         setStep('PROCESSING');
         try {
             await writeContractAsync({
-                address: USDC_ADDRESS,
+                address: assetAddress,
                 abi: ERC20_ABI,
                 functionName: 'approve',
-                args: [PROPOSAL_MANAGER_ADDRESS, val]
+                args: [PROPOSAL_MANAGER_ADDRESS as `0x${string}`, val]
             });
         } catch (error) {
             console.error("Approval failed:", error);
@@ -224,6 +224,31 @@ export default function DonationModal({ isOpen, onClose, point }: DonationModalP
                                     <div className="h-5 w-5 rounded border border-blue-500/50 bg-blue-500 flex items-center justify-center">
                                         <ShieldCheck size={12} className="text-white" />
                                     </div>
+                                </div>
+
+                                {/* Mint Option for Testing */}
+                                <div className="flex items-center justify-between p-3 rounded-lg bg-yellow-900/10 border border-yellow-900/30 mb-4">
+                                    <div className="text-xs text-yellow-500/80">
+                                        Running on Testnet? Need Test Tokens?
+                                    </div>
+                                    <button
+                                        onClick={async () => {
+                                            if (!assetAddress || !address) return;
+                                            try {
+                                                await writeContractAsync({
+                                                    address: assetAddress,
+                                                    abi: [...ERC20_ABI, { name: 'mint', type: 'function', inputs: [{ name: 'to', type: 'address' }, { name: 'amount', type: 'uint256' }], outputs: [], stateMutability: 'nonpayable' }],
+                                                    functionName: 'mint',
+                                                    args: [address, parseUnits('1000', 18)]
+                                                });
+                                            } catch (e) {
+                                                console.error("Mint failed:", e);
+                                            }
+                                        }}
+                                        className="px-3 py-1 bg-yellow-600/20 hover:bg-yellow-600/40 text-yellow-500 text-xs font-bold rounded border border-yellow-600/50 transition"
+                                    >
+                                        Mint 1000 USDC
+                                    </button>
                                 </div>
 
                                 <button

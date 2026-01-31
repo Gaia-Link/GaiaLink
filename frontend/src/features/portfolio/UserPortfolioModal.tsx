@@ -3,7 +3,7 @@
 import { useState, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Wallet, ShieldCheck, TrendingUp, Coins, ChevronDown, ChevronUp, Loader2, ArrowUpRight } from 'lucide-react';
-import { useAccount, useReadContracts, usePublicClient, useWatchContractEvent, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { useAccount, useReadContracts, useReadContract, usePublicClient, useWatchContractEvent, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { formatUnits, parseAbiItem } from 'viem';
 import { useQuery } from '@tanstack/react-query';
 import { PROPOSAL_MANAGER_ADDRESS } from '@/lib/constants';
@@ -94,23 +94,45 @@ export default function UserPortfolioModal({ isOpen, onClose }: UserPortfolioMod
         },
     });
 
-    // Prepare contract calls for all known proposals
-    const contracts = useMemo(() => proposals.map((point) => {
-        const pid = parseInt(point.id) || 0;
-        return {
-            address: PROPOSAL_MANAGER_ADDRESS,
-            abi: GAIA_PROPOSAL_MANAGER_ABI,
-            functionName: 'userBalances',
-            args: [BigInt(pid), address!]
-        }
-    }), [proposals, address]);
-
-    const { data: balances, isLoading, refetch: refetchBalances } = useReadContracts({
-        contracts: contracts as any,
+    // -------------------------------------------------------------------------
+    // Portfolio Fetching (Bulk)
+    // -------------------------------------------------------------------------
+    const { data: portfolioItems, isLoading: isPortfolioLoading, refetch: refetchPortfolio } = useReadContract({
+        address: PROPOSAL_MANAGER_ADDRESS,
+        abi: GAIA_PROPOSAL_MANAGER_ABI,
+        functionName: 'getUserPortfolio',
+        args: [address!],
         query: {
-            enabled: !!address && isOpen && proposals.length > 0
+            enabled: !!address && isOpen
         }
     });
+
+    // Map bulk data to internal structure
+    interface BalanceMap {
+        directAmount: bigint;
+        noLossAmount: bigint;
+    }
+
+    // Convert array to map for easy lookup by proposalId
+    const balances = useMemo(() => {
+        if (!portfolioItems) return [];
+        return (portfolioItems as any[]).map((item) => ({
+            result: {
+                directAmount: item.directAmount,
+                noLossAmount: item.noLossAmount
+            }
+        }));
+    }, [portfolioItems]);
+
+    // Helper to get balance for a specific PID (to keep existing logic working)
+    const getBalance = (pid: number) => {
+        if (!portfolioItems) return { direct: 0n, noLoss: 0n };
+        const item = (portfolioItems as any[]).find((p: any) => Number(p.proposalId) === pid);
+        return {
+            direct: item ? item.directAmount : 0n,
+            noLoss: item ? item.noLossAmount : 0n
+        };
+    };
 
 
 
@@ -145,7 +167,7 @@ export default function UserPortfolioModal({ isOpen, onClose }: UserPortfolioMod
                 await publicClient.waitForTransactionReceipt({ hash });
                 console.log("Withdrawal confirmed, refetching balances...");
                 await Promise.all([
-                    refetchBalances(),
+                    refetchPortfolio(),
                     refetchHistory()
                 ]);
             }
@@ -240,11 +262,11 @@ export default function UserPortfolioModal({ isOpen, onClose }: UserPortfolioMod
 
     // Calculate total yield share for the user across all donations
     const activeDonations = proposals.map((point, index) => {
-        const balance = balances?.[index]?.result as [bigint, bigint] | undefined;
+        const balance = balances?.[index]?.result;
         if (!balance) return null;
 
-        const direct = balance[0];
-        const noLoss = balance[1];
+        const direct = balance.directAmount as bigint;
+        const noLoss = balance.noLossAmount as bigint;
 
         if (direct === 0n && noLoss === 0n) return null;
 
@@ -341,7 +363,7 @@ export default function UserPortfolioModal({ isOpen, onClose }: UserPortfolioMod
                                 </div>
                             ) : activeTab === 'portfolio' ? (
                                 // PORTFOLIO VIEW
-                                isLoading ? (
+                                isPortfolioLoading ? (
                                     <div className="text-center py-12">
                                         <div className="inline-block w-8 h-8 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin"></div>
                                         <p className="mt-4 text-cyan-500/50 text-xs font-mono animate-pulse">SCANNING BLOCKCHAIN NODES...</p>
@@ -401,6 +423,7 @@ export default function UserPortfolioModal({ isOpen, onClose }: UserPortfolioMod
                                                     {/* Card Glow */}
                                                     <div className="absolute top-0 right-0 p-3 opacity-20 group-hover:opacity-100 transition-opacity duration-500">
                                                         <div className="w-20 h-20 bg-cyan-500/20 rounded-full blur-xl"></div>
+
                                                     </div>
 
                                                     <div className="bg-[#111]/80 backdrop-blur-sm rounded-lg p-4 relative z-10 h-full">
