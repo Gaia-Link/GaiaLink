@@ -10,5 +10,13 @@ export interface CrisisPoint {
 }
 
 export const MOCK_DATA: CrisisPoint[] = [
-    { id: '1', lat: 48.8566, lng: 2.3522, intensity: 1, label: 'Red Cross HQ', type: 'node', description: 'Coordination Center' },
+    {
+        id: '0',
+        lat: 31.7917,
+        lng: -7.0926,
+        intensity: 0.8,
+        label: 'Morocco Earthquake Reconstruction',
+        type: 'crisis',
+        description: 'Post-earthquake reconstruction for remote villages in the Atlas Mountains.'
+    },
 ];

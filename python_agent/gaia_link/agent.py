@@ -16,7 +16,9 @@ from gaia_link.tools import (
     VerifyCrisisTool,
     AnalyzeSentimentTool,
     ExecuteDonationTool,
-    ListCrisesTool,  # Registered new tool
+    ExecuteDonationTool,
+    ListCrisesTool,
+    CreateVaultTool,  # Registered new tool
 )
 
 
@@ -48,6 +50,7 @@ When users want to donate, you:
 2. analyze_sentiment - Analyze post urgency and authenticity
 3. execute_donation - Process blockchain donations
 4. list_crises - List all active crises from the database
+5. create_vault - Deploy a standalone charity vault
 
 ## Response Format
 You MUST output strictly Valid JSON. Do not return markdown. Do not wrap in ```json markers.
@@ -115,7 +118,9 @@ class GaiaLinkAgent(SpoonReactAI):
             VerifyCrisisTool(),
             AnalyzeSentimentTool(),
             ExecuteDonationTool(),
-            ListCrisesTool(),  # Registered
+            ExecuteDonationTool(),
+            ListCrisesTool(),
+            CreateVaultTool(),
         ])
     )
 

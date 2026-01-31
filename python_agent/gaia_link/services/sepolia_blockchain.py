@@ -26,9 +26,15 @@ SEPOLIA_EXPLORER_URL = "https://sepolia.etherscan.io"
 
 # 代幣合約地址 (Sepolia 測試網)
 SEPOLIA_TOKEN_CONTRACTS = {
-    "USDC": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",  # Circle 官方測試 USDC
-    "USDT": "0x7169D38820dfd117C3FA1f22a697dBA58d90BA06",  # Sepolia USDT
-    "DAI": "0x3e622317f8C93f7328350cF0B56d9eD4C620C5d6",   # Sepolia DAI
+    "USDC": "0x68b1d87f95878fe05b998f19b66f4baba5de1aed",  # MockUSDC (Local/Anvil)
+    "USDT": "0x7169D38820dfd117C3FA1f22a697dBA58d90BA06",
+    "DAI": "0x3e622317f8C93f7328350cF0B56d9eD4C620C5d6",
+}
+
+# Gaia Protocol Contracts
+GAIA_CONTRACTS = {
+    "ProposalManager": "0xc6e7df5e7b4f2a278906862b61205850344d4e7d",
+    "CharityRegistry": "0x3aa5ebb10dc797cac828524e59a333d0a371443c"
 }
 
 # ERC20 轉帳 ABI (只需要 transfer 函數)

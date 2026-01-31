@@ -6,16 +6,26 @@ import Overlay from '@/features/forum/components/Overlay';
 import SpoonOSInterface from '@/features/spoon-os/components/SpoonOSInterface';
 import DonationModal from '@/features/donation/components/DonationModal';
 import LivingGlobe from '@/features/globe/components/LivingGlobe';
-import { CrisisPoint, MOCK_DATA } from '@/lib/mockData';
+import { CrisisPoint } from '@/lib/mockData';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import RpcTester from '@/features/debug/RpcTester';
+import { useSendTransaction } from 'wagmi';
+import { History } from 'lucide-react';
+import UserPortfolioModal from '@/features/portfolio/UserPortfolioModal';
+import { useProposals } from '@/hooks/useProposals';
 
 export default function Home() {
   const [selectedPoint, setSelectedPoint] = useState<CrisisPoint | null>(null);
   const [isSpoonActive, setIsSpoonActive] = useState(false); // Controls dimming
   const [isSpoonOpen, setIsSpoonOpen] = useState(false);     // Controls visibility
   const [isDonationOpen, setIsDonationOpen] = useState(false);
-  const [data, setData] = useState<CrisisPoint[]>([]);
+  const [isPortfolioOpen, setIsPortfolioOpen] = useState(false);
+
+  const { sendTransaction } = useSendTransaction();
+  const onChainProposals = useProposals();
+
+  // Unified data source from blockchain
+  const data = onChainProposals;
 
   // Toggle SpoonOS with Spacebar
   useEffect(() => {
@@ -31,35 +41,6 @@ export default function Home() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
-
-  // Fetch crisis data from our local API (which reads backend_data/data.json)
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const res = await fetch('/api/crises');
-        const json = await res.json();
-        if (json.crises) {
-          // Transform backend data format to frontend CrisisPoint format if needed
-          // For now, assuming distinct fields map cleanly or we just use raw
-          // We map 'location' { lat, lng } to top level lat/lng for LivingGlobe
-          const mappedData = json.crises.map((c: any) => ({
-            id: c.id,
-            lat: c.location.lat,
-            lng: c.location.lng,
-            intensity: c.severity === 'CRITICAL' ? 1.0 : c.severity === 'HIGH' ? 0.8 : 0.5,
-            label: c.title,
-            type: 'crisis', // distinguish from 'voice' or others if needed
-            description: c.description,
-            hasVault: c.vaults && c.vaults.length > 0 // Map backend vault existence
-          }));
-          setData(mappedData);
-        }
-      } catch (e) {
-        console.error("Failed to fetch crises", e);
-      }
-    }
-    fetchData();
   }, []);
 
   const handleDonate = (point: CrisisPoint) => {
@@ -85,9 +66,21 @@ export default function Home() {
       alert('✅ Transaction signed! (Mock)\n\nIn production, this would:\n1. Prompt your wallet to sign\n2. Deploy a new vault proposal on-chain\n3. Show transaction confirmation');
     }
     else if (action === 'sign_transaction') {
-      // Mock: Simulate signing a donation transaction
       console.log('📝 Signing donation transaction...', data);
-      alert(`✅ Donation Transaction signed! (Mock)\n\nPayload:\nTo: ${data?.to}\nValue: ${data?.value}\nData: ${data?.data}\nIntent: ${data?.intent_summary}`);
+
+      if (data && data.to && data.value) {
+        try {
+          sendTransaction({
+            to: data.to,
+            value: BigInt(data.value),
+            data: data.data as `0x${string}`,
+            chainId: data.chainId
+          });
+        } catch (error) {
+          console.error("Transaction failed:", error);
+          alert("Transaction failed to initiate.");
+        }
+      }
     }
     else if (action === 'donate_direct' || action === 'donate_yield') {
       // Open donation modal with the selected crisis point
@@ -116,8 +109,15 @@ export default function Home() {
           </p>
         </div>
 
-        {/* Wallet Connect */}
-        <div className="pointer-events-auto">
+        {/* Wallet Connect & Portfolio */}
+        <div className="pointer-events-auto flex items-center gap-3">
+          <button
+            onClick={() => setIsPortfolioOpen(true)}
+            className="p-2.5 bg-white/10 hover:bg-white/20 rounded-xl transition text-white border border-white/5 backdrop-blur-md"
+            title="My Donations"
+          >
+            <History size={20} />
+          </button>
           <ConnectButton showBalance={false} />
         </div>
 
@@ -144,6 +144,11 @@ export default function Home() {
         isOpen={isDonationOpen}
         onClose={() => setIsDonationOpen(false)}
         point={selectedPoint}
+      />
+
+      <UserPortfolioModal
+        isOpen={isPortfolioOpen}
+        onClose={() => setIsPortfolioOpen(false)}
       />
 
       {/* Instructions / Footer */}

@@ -14,6 +14,7 @@ import {
     arbitrum,
     base,
     sepolia,
+    foundry, // Local Anvil
 } from 'wagmi/chains';
 import {
     QueryClientProvider,
@@ -23,7 +24,7 @@ import {
 const config = getDefaultConfig({
     appName: 'Gaia Link',
     projectId: '76d95ee5ce69de7321d0749e0b87c2b8',
-    chains: [mainnet, polygon, optimism, arbitrum, base, sepolia],
+    chains: [mainnet, polygon, optimism, arbitrum, base, sepolia, foundry],
     ssr: true,
     storage: createStorage({
         storage: cookieStorage,
@@ -35,6 +36,7 @@ const config = getDefaultConfig({
         [optimism.id]: http(),
         [arbitrum.id]: http(),
         [base.id]: http(),
+        [foundry.id]: http('http://127.0.0.1:8545'),
     },
 });
 

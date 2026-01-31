@@ -8,6 +8,7 @@ from gaia_link.tools.verify_crisis import VerifyCrisisTool
 from gaia_link.tools.analyze_sentiment import AnalyzeSentimentTool
 from gaia_link.tools.execute_donation import ExecuteDonationTool
 from gaia_link.tools.list_crises import ListCrisesTool
+from gaia_link.tools.create_vault import CreateVaultTool
 
 __all__ = [
     "VerifyCrisisTool",

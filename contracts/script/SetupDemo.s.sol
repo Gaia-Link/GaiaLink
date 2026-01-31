@@ -9,9 +9,14 @@ import {MockERC20} from "../test/mocks/MockERC20.sol";
 contract SetupDemo is Script {
     function run() external {
         uint256 deployerPrivateKey = vm.envOr("WALLET_PRIVATE_KEY", uint256(0));
-        address owner = vm.envOr("OWNER_ADDRESS", msg.sender);
+        
+        if (deployerPrivateKey != 0) {
+            vm.startBroadcast(deployerPrivateKey);
+        } else {
+            vm.startBroadcast();
+        }
 
-        vm.startBroadcast(deployerPrivateKey);
+        address owner = vm.envOr("OWNER_ADDRESS", msg.sender);
 
         // 1. Deploy Mocks
         MockERC20 token = new MockERC20("USDC", "USDC");
@@ -26,8 +31,11 @@ contract SetupDemo is Script {
         console2.log("GaiaProposalManager:", address(manager));
 
         // 4. Seed Data: Register Charities
-        charityRegistry.registerCharity(owner, "Red Cross International"); // ID 1
-        charityRegistry.registerCharity(owner, "UNICEF"); // ID 2
+        address charityAdmin1 = owner;
+        address charityAdmin2 = address(0x2);
+        
+        charityRegistry.registerCharity(charityAdmin1, "Red Cross International"); // ID 1
+        charityRegistry.registerCharity(charityAdmin2, "UNICEF"); // ID 2
         console2.log("Seeded Charities: Red Cross (1), UNICEF (2)");
 
         // Seed Data: Create Real-world Proposals matching backend_data/data.json
