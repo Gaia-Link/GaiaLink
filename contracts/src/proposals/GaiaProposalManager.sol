@@ -5,7 +5,6 @@ import {NoLossVault} from "../vaults/NoLossVault.sol";
 import {DirectVault} from "../vaults/DirectVault.sol";
 import {MockAaveStrategy} from "../strategies/MockAaveStrategy.sol";
 import {GaiaCharityRegistry} from "../access/GaiaCharityRegistry.sol";
-import {GaiaAgentRegistry} from "../access/GaiaAgentRegistry.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
@@ -32,7 +31,6 @@ contract GaiaProposalManager is Ownable {
         
         uint256 expiry;
         bool accepted;
-        bool isVerified; // AI Agent Verification
 
         // Dual-Mode Tracking
         uint256 totalDirect;
@@ -51,7 +49,6 @@ contract GaiaProposalManager is Ownable {
     mapping(uint256 => mapping(address => UserBalance)) public userBalances;
 
     GaiaCharityRegistry public charityRegistry;
-    GaiaAgentRegistry public agentRegistry;
 
     // Rich Events for 3D Globe
     event ProposalCreated(
@@ -65,11 +62,9 @@ contract GaiaProposalManager is Ownable {
     event FundsDeposited(uint256 indexed proposalId, address indexed user, uint256 amount, bool isNoLoss);
     event FundsWithdrawn(uint256 indexed proposalId, address indexed user, uint256 directAmount, uint256 noLossAmount);
     event ProposalAccepted(uint256 indexed proposalId, address directVault, address noLossVault);
-    event ProposalVerified(uint256 indexed proposalId, address indexed agent);
 
-    constructor(address _owner, address _charityRegistry, address _agentRegistry) Ownable(_owner) {
+    constructor(address _owner, address _charityRegistry) Ownable(_owner) {
         charityRegistry = GaiaCharityRegistry(_charityRegistry);
-        agentRegistry = GaiaAgentRegistry(_agentRegistry);
     }
 
     /**
@@ -103,7 +98,6 @@ contract GaiaProposalManager is Ownable {
             category: _category,
             expiry: block.timestamp + _duration,
             accepted: false,
-            isVerified: false,
             totalDirect: 0,
             totalNoLoss: 0,
             directVault: address(0),
@@ -178,16 +172,6 @@ contract GaiaProposalManager is Ownable {
         }
 
         emit ProposalAccepted(_proposalId, p.directVault, p.noLossVault);
-    }
-    
-    /**
-     * @dev Authorized AI Agent validates a proposal.
-     */
-    function verifyProposal(uint256 _proposalId) external {
-        require(agentRegistry.isAuthorized(msg.sender), "Not authorized agent");
-        Proposal storage p = proposals[_proposalId];
-        p.isVerified = true;
-        emit ProposalVerified(_proposalId, msg.sender);
     }
 
     /**

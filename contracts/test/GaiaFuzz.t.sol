@@ -4,14 +4,12 @@ pragma solidity ^0.8.20;
 import {Test, console2} from "forge-std/Test.sol";
 import {GaiaProposalManager} from "../src/proposals/GaiaProposalManager.sol";
 import {GaiaCharityRegistry} from "../src/access/GaiaCharityRegistry.sol";
-import {GaiaAgentRegistry} from "../src/access/GaiaAgentRegistry.sol";
 import {DirectVault} from "../src/vaults/DirectVault.sol";
 import {MockERC20} from "./mocks/MockERC20.sol";
 
 contract GaiaFuzzTest is Test {
     GaiaProposalManager public manager;
     GaiaCharityRegistry public charityRegistry;
-    GaiaAgentRegistry public agentRegistry;
     MockERC20 public token;
     
     address public owner = address(1);
@@ -26,8 +24,7 @@ contract GaiaFuzzTest is Test {
         token = new MockERC20("USD Coin", "USDC");
         
         charityRegistry = new GaiaCharityRegistry(owner);
-        agentRegistry = new GaiaAgentRegistry();
-        manager = new GaiaProposalManager(owner, address(charityRegistry), address(agentRegistry));
+        manager = new GaiaProposalManager(owner, address(charityRegistry));
         
         charityRegistry.registerCharity(charityAdmin, "Red Cross");
         charityId = 1;
@@ -53,7 +50,7 @@ contract GaiaFuzzTest is Test {
         manager.depositToProposal(pid, amount, isNoLoss);
         vm.stopPrank();
 
-        (,,,,,,,,,,, uint256 totalDirect, uint256 totalNoLoss,,) = manager.proposals(pid);
+        (,,,,,,,,,, uint256 totalDirect, uint256 totalNoLoss,,) = manager.proposals(pid);
 
         if (isNoLoss) {
             assertEq(totalNoLoss, amount);
@@ -71,7 +68,7 @@ contract GaiaFuzzTest is Test {
         vm.prank(proposer);
         uint256 pid = manager.createProposal(charityId, token, "Geo Proposal", "ipfs://", lat, lng, category, duration);
 
-        (,,,,, int24 rLat, int24 rLng, uint8 rCat, uint256 rExpiry,,,,,,) = manager.proposals(pid);
+        (,,,,, int24 rLat, int24 rLng, uint8 rCat, uint256 rExpiry,,,,,) = manager.proposals(pid);
         
         assertEq(rLat, lat);
         assertEq(rLng, lng);
@@ -101,7 +98,7 @@ contract GaiaFuzzTest is Test {
         assertEq(token.balanceOf(donor), amount);
         
         // Proposal total should be 0
-        (,,,,,,,,,,, uint256 totalDirect, uint256 totalNoLoss,,) = manager.proposals(pid);
+        (,,,,,,,,,, uint256 totalDirect, uint256 totalNoLoss,,) = manager.proposals(pid);
         assertEq(totalDirect, 0);
         assertEq(totalNoLoss, 0);
     }

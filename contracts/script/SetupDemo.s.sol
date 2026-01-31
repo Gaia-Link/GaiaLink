@@ -2,7 +2,6 @@
 pragma solidity ^0.8.20;
 
 import {Script, console2} from "forge-std/Script.sol";
-import {GaiaAgentRegistry} from "../src/access/GaiaAgentRegistry.sol";
 import {GaiaProposalManager} from "../src/proposals/GaiaProposalManager.sol";
 import {GaiaCharityRegistry} from "../src/access/GaiaCharityRegistry.sol";
 import {MockERC20} from "../test/mocks/MockERC20.sol";
@@ -19,13 +18,11 @@ contract SetupDemo is Script {
         console2.log("MockUSDC deployed at:", address(token));
 
         // 2. Deploy Registries
-        GaiaAgentRegistry agentRegistry = new GaiaAgentRegistry();
         GaiaCharityRegistry charityRegistry = new GaiaCharityRegistry(owner);
-        console2.log("GaiaAgentRegistry:", address(agentRegistry));
         console2.log("GaiaCharityRegistry:", address(charityRegistry));
 
         // 3. Deploy Manager
-        GaiaProposalManager manager = new GaiaProposalManager(owner, address(charityRegistry), address(agentRegistry));
+        GaiaProposalManager manager = new GaiaProposalManager(owner, address(charityRegistry));
         console2.log("GaiaProposalManager:", address(manager));
 
         // 4. Seed Data: Register Charities

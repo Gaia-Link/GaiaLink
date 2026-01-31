@@ -6,13 +6,11 @@ import {GaiaProposalManager} from "../src/proposals/GaiaProposalManager.sol";
 import {NoLossVault} from "../src/vaults/NoLossVault.sol";
 import {DirectVault} from "../src/vaults/DirectVault.sol";
 import {GaiaCharityRegistry} from "../src/access/GaiaCharityRegistry.sol";
-import {GaiaAgentRegistry} from "../src/access/GaiaAgentRegistry.sol";
 import {MockERC20} from "./mocks/MockERC20.sol";
 
 contract GaiaProposalTest is Test {
     GaiaProposalManager public manager;
     GaiaCharityRegistry public charityRegistry;
-    GaiaAgentRegistry public agentRegistry;
     MockERC20 public token;
     
     address public owner = address(1);
@@ -21,7 +19,6 @@ contract GaiaProposalTest is Test {
     address public charityMember = address(10); // Red Cross Worker
     address public donor1 = address(4);
     address public donor2 = address(5);
-    address public agent = address(6);
 
     uint256 public charityId;
 
@@ -30,16 +27,12 @@ contract GaiaProposalTest is Test {
         token = new MockERC20("USD Coin", "USDC");
         
         charityRegistry = new GaiaCharityRegistry(owner);
-        agentRegistry = new GaiaAgentRegistry();
-        manager = new GaiaProposalManager(owner, address(charityRegistry), address(agentRegistry));
+        manager = new GaiaProposalManager(owner, address(charityRegistry));
         
         // 1. Register Charity (Tier 1)
         charityRegistry.registerCharity(charityAdmin, "Red Cross");
         charityId = 1;
 
-        // 2. Authorize Agent
-        agentRegistry.authorizeAgent(agent);
-        
         vm.stopPrank();
 
         // 3. Charity adds Member (Tier 2)
@@ -56,14 +49,7 @@ contract GaiaProposalTest is Test {
         // lat: 25.0, lng: 121.0, category: 1 (Earthquake)
         uint256 pid = manager.createProposal(charityId, token, "Taiwan Earthquake Relief", "ipfs://QmHash", 250000, 1210000, 1, 1 days);
 
-        // 2. Verified by Agent
-        vm.prank(agent);
-        manager.verifyProposal(pid);
-        // Unpack: (proposer, charityId, asset, title, metadata, lat, lng, category, expiry, accepted, isVerified, totalDirect, totalNoLoss, dVault, nVault)
-        (,,,,,,,,,, bool isVerified,,,,) = manager.proposals(pid);
-        assertTrue(isVerified);
-
-        // 3. Donors Deposit
+        // 2. Donors Deposit
         vm.startPrank(donor1);
         token.approve(address(manager), 100e18);
         manager.depositToProposal(pid, 100e18, false); // Direct
@@ -85,7 +71,7 @@ contract GaiaProposalTest is Test {
         manager.acceptProposal(pid);
 
         // 6. Verify Vaults
-        (,,,,,,,,,,,,, address dVault, address nVault) = manager.proposals(pid);
+        (,,,,,,,,,,,, address dVault, address nVault) = manager.proposals(pid);
         
         // Verify Direct Vault balance
         assertEq(token.balanceOf(dVault), 100e18);
