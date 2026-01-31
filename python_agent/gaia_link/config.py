@@ -51,9 +51,9 @@ class Settings(BaseSettings):
         description="LLM Provider (openai, gemini, anthropic)",
     )
 
-    google_api_key: Optional[str] = Field(
+    gemini_api_key: Optional[str] = Field(
         default=None,
-        description="Google Gemini API Key",
+        description="Gemini API Key (SpoonOS uses GEMINI_API_KEY)",
     )
     
     gemini_model: str = Field(

@@ -2,9 +2,11 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mic, Send, Sparkles, ArrowRight, Wallet, Coins, TrendingUp, X } from 'lucide-react';
+import { Mic, Send, Sparkles, ArrowRight, Wallet, X, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 import { CrisisPoint } from '@/lib/mockData';
 import { sendMessageToAgent, AgentResponse } from '../services/agentService';
+import { useSendTransaction, useAccount, useChainId, useSwitchChain } from 'wagmi';
+import { sepolia } from 'wagmi/chains';
 
 interface SpoonOSInterfaceProps {
     isOpen: boolean; // Managed by parent (Space key)
@@ -27,8 +29,78 @@ export default function SpoonOSInterface({ isOpen, onClose, selectedPoint, onAct
     const [inputValue, setInputValue] = useState('');
     const [placeholder, setPlaceholder] = useState('');
     const [messages, setMessages] = useState<Message[]>([]);
+    const [txStatus, setTxStatus] = useState<'idle' | 'pending' | 'success' | 'error'>('idle');
+    const [txHash, setTxHash] = useState<string | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
+
+    // Wagmi hooks for transaction
+    const { address, isConnected } = useAccount();
+    const chainId = useChainId();
+    const { switchChain } = useSwitchChain();
+    const { sendTransactionAsync, isPending: isTxPending } = useSendTransaction();
+
+    // Handle transaction signing with wagmi
+    const handleSignTransaction = async (payload: any) => {
+        if (!isConnected) {
+            setMessages(prev => [...prev, {
+                role: 'agent',
+                content: "Please connect your wallet first using the button in the top right corner."
+            }]);
+            return;
+        }
+
+        // Check if on Sepolia network
+        if (chainId !== sepolia.id) {
+            try {
+                await switchChain({ chainId: sepolia.id });
+            } catch (error) {
+                setMessages(prev => [...prev, {
+                    role: 'agent',
+                    content: "Please switch to Sepolia testnet to proceed with the transaction."
+                }]);
+                return;
+            }
+        }
+
+        setTxStatus('pending');
+
+        try {
+            // Debug: Log the payload to verify gas value
+            console.log("[GaiaLink] Transaction payload:", payload);
+            console.log("[GaiaLink] Using gas limit:", payload.gas || "65000 (default)");
+
+            const gasLimit = BigInt(payload.gas || "65000");
+            console.log("[GaiaLink] Gas as BigInt:", gasLimit.toString());
+
+            const hash = await sendTransactionAsync({
+                to: payload.to as `0x${string}`,
+                value: BigInt(payload.value || "0"),
+                data: payload.data as `0x${string}`,
+                chainId: sepolia.id,
+                gas: gasLimit,
+            });
+
+            setTxHash(hash);
+            setTxStatus('success');
+
+            setMessages(prev => [...prev, {
+                role: 'agent',
+                content: `Transaction submitted successfully!\n\nTx Hash: ${hash}\n\nView on Sepolia Etherscan: https://sepolia.etherscan.io/tx/${hash}`
+            }]);
+
+            setMode('DECISION');
+        } catch (error: any) {
+            setTxStatus('error');
+            console.error("Transaction failed:", error);
+
+            setMessages(prev => [...prev, {
+                role: 'agent',
+                content: `Transaction failed: ${error?.message || 'Unknown error'}. Please try again.`
+            }]);
+            setMode('DECISION');
+        }
+    };
 
     // Auto-scroll to bottom
     useEffect(() => {
@@ -273,21 +345,55 @@ export default function SpoonOSInterface({ isOpen, onClose, selectedPoint, onAct
                                                 </p>
                                             </div>
                                             <div className="w-full space-y-3 pt-4 px-4">
+                                                {/* Transaction Status Indicator */}
+                                                {txStatus === 'pending' && (
+                                                    <div className="flex items-center justify-center gap-2 text-yellow-400 py-2">
+                                                        <Loader2 className="w-5 h-5 animate-spin" />
+                                                        <span>Waiting for wallet confirmation...</span>
+                                                    </div>
+                                                )}
+                                                {txStatus === 'success' && txHash && (
+                                                    <div className="flex items-center justify-center gap-2 text-green-400 py-2">
+                                                        <CheckCircle className="w-5 h-5" />
+                                                        <span>Transaction submitted!</span>
+                                                    </div>
+                                                )}
+                                                {txStatus === 'error' && (
+                                                    <div className="flex items-center justify-center gap-2 text-red-400 py-2">
+                                                        <AlertCircle className="w-5 h-5" />
+                                                        <span>Transaction failed</span>
+                                                    </div>
+                                                )}
+
                                                 {messages[messages.length - 1]?.response?.ui_hints.actions?.map((action, idx) => (
                                                     <button
                                                         key={idx}
                                                         onClick={() => {
-                                                            onAction(action.type, messages[messages.length - 1]?.response?.transaction_payload);
-                                                            setMode('IDLE');
-                                                            onClose();
+                                                            const payload = messages[messages.length - 1]?.response?.transaction_payload;
+                                                            if (action.type === 'sign_transaction' && payload) {
+                                                                handleSignTransaction(payload);
+                                                            } else {
+                                                                onAction(action.type, payload);
+                                                                setMode('IDLE');
+                                                                onClose();
+                                                            }
                                                         }}
-                                                        className="w-full py-4 bg-yellow-500 text-black font-bold rounded-2xl hover:bg-yellow-400 transition transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2"
+                                                        disabled={txStatus === 'pending'}
+                                                        className="w-full py-4 bg-yellow-500 text-black font-bold rounded-2xl hover:bg-yellow-400 transition transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                                                     >
-                                                        <Send size={20} />
-                                                        {action.label}
+                                                        {txStatus === 'pending' ? (
+                                                            <Loader2 size={20} className="animate-spin" />
+                                                        ) : (
+                                                            <Send size={20} />
+                                                        )}
+                                                        {txStatus === 'pending' ? 'Confirming...' : action.label}
                                                     </button>
                                                 ))}
-                                                <button onClick={() => setMode('DECISION')} className="w-full py-3 text-gray-500 hover:text-white transition">
+                                                <button
+                                                    onClick={() => { setMode('DECISION'); setTxStatus('idle'); }}
+                                                    disabled={txStatus === 'pending'}
+                                                    className="w-full py-3 text-gray-500 hover:text-white transition disabled:opacity-50"
+                                                >
                                                     Cancel & Return to Chat
                                                 </button>
                                             </div>
@@ -311,8 +417,14 @@ export default function SpoonOSInterface({ isOpen, onClose, selectedPoint, onAct
                                                                     <button
                                                                         key={aiIdx}
                                                                         onClick={() => {
-                                                                            if (act.type.startsWith('select_vault')) handleSubmit(act.label);
-                                                                            else {
+                                                                            if (act.type.startsWith('select_vault')) {
+                                                                                handleSubmit(act.label);
+                                                                            } else if (act.type === 'sign_transaction') {
+                                                                                const payload = msg.response?.transaction_payload;
+                                                                                if (payload) {
+                                                                                    setMode('SIGNATURE');
+                                                                                }
+                                                                            } else {
                                                                                 onAction(act.type, selectedPoint);
                                                                                 if (act.type !== 'sign_proposal') { setMode('IDLE'); onClose(); }
                                                                             }

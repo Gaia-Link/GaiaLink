@@ -23,6 +23,51 @@ TOKEN_USD_RATES = {
     "DAI": 1.0,
 }
 
+# Sepolia 測試網代幣合約地址
+SEPOLIA_TOKEN_CONTRACTS = {
+    "USDC": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",  # Circle 官方 Sepolia USDC
+    "USDT": "0x7169D38820dfd117C3FA1f22a697dBA58d90BA06",  # Sepolia USDT
+    "DAI": "0x68194a729C2450ad26072b3D33ADaCbcef39D574",   # Sepolia DAI
+}
+
+# 代幣小數位數
+TOKEN_DECIMALS = {
+    "USDC": 6,
+    "USDT": 6,
+    "DAI": 18,
+    "ETH": 18,
+}
+
+# ERC20 transfer function selector: keccak256("transfer(address,uint256)")[:4]
+ERC20_TRANSFER_SELECTOR = "0xa9059cbb"
+
+
+def encode_erc20_transfer(recipient: str, amount: float, decimals: int = 6) -> str:
+    """
+    編碼 ERC20 transfer(address,uint256) calldata
+
+    Args:
+        recipient: 接收地址 (含或不含 0x 前綴)
+        amount: 轉帳金額 (人類可讀格式，如 100.0)
+        decimals: 代幣小數位數 (USDC = 6, DAI = 18)
+
+    Returns:
+        完整的 calldata hex string (含 0x 前綴)
+    """
+    # 清理地址格式
+    clean_recipient = recipient.lower().replace("0x", "")
+
+    # 將金額轉為最小單位 (USDC: 100 -> 100000000)
+    amount_wei = int(amount * (10 ** decimals))
+
+    # 編碼參數 (每個參數 32 bytes = 64 hex chars)
+    # address: 左補零到 32 bytes
+    address_padded = clean_recipient.zfill(64)
+    # uint256: 左補零到 32 bytes
+    amount_hex = hex(amount_wei)[2:].zfill(64)
+
+    return f"{ERC20_TRANSFER_SELECTOR}{address_padded}{amount_hex}"
+
 
 class ExecuteDonationTool(BaseTool):
     """
@@ -89,7 +134,7 @@ class ExecuteDonationTool(BaseTool):
         Args:
             amount: 捐款金額
             token: 代幣類型
-            recipient_address: 接收地址 (若無則由 Agent 根據上下文決定，此處 Demo 默認 mock)
+            recipient_address: 接收地址 (若無則使用預設測試 Vault)
             vault_type: 資金池類型 (DIRECT/YIELD)
         """
         # 輸入驗證
@@ -101,35 +146,47 @@ class ExecuteDonationTool(BaseTool):
                 f"Unsupported token: {token}. Supported: {', '.join(SUPPORTED_TOKENS)}"
             )
 
-        # 若未提供地址，使用 Mock 地址 (Demo 用)
+        # 若未提供地址，使用預設的 Demo Vault 地址
+        # 注意：請在部署前替換為你自己的 Sepolia 測試錢包
         if not recipient_address:
-            # 在真實場景中，這裡會查詢 data.json 找到對應災情的 Vault 地址
-            recipient_address = "0xDem0VaultAddressForTurkeyRelief00000000" 
+            recipient_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f5bE91"  # Demo Vault
 
-        # 簡單的 Payload 構建 (Mock)
-        # 真實場景會調用合約生成 calldata (e.g., ERC20 transfer or Vault deposit)
-        
-        # 獲取服務用於估算 Gas (可選)
-        service = self._get_service()
-        
-        # 模擬 Gas 估算
-        estimated_gas = 21000
-        estimated_gas_price = "20 gwei"
+        # 獲取代幣小數位數
+        decimals = TOKEN_DECIMALS.get(token, 6)
+
+        # 根據代幣類型構建交易
+        if token == "ETH":
+            # ETH 原生轉帳
+            calldata = "0x"
+            tx_to = recipient_address
+            # ETH value 以 Wei 為單位 (amount * 10^18)
+            tx_value = str(int(amount * (10 ** 18)))
+            estimated_gas = 21000
+        else:
+            # ERC20 transfer
+            calldata = encode_erc20_transfer(recipient_address, amount, decimals)
+            # ERC20 交易發送到代幣合約地址
+            tx_to = SEPOLIA_TOKEN_CONTRACTS.get(token, SEPOLIA_TOKEN_CONTRACTS["USDC"])
+            tx_value = "0"
+            estimated_gas = 65000  # ERC20 transfer 約需 65000 gas
 
         return {
             "success": True,
             "status": "ready_to_sign",
             "transaction_payload": {
-                "to": recipient_address,
-                "value": "0" if token != "ETH" else str(amount), # ETH 直接轉帳，ERC20 為 0
-                "data": "0x...", # 這裡是 ERC20 transfer 或 Vault deposit 的 calldata encoded
-                "chainId": 11155111, # Sepolia
+                "to": tx_to,
+                "value": tx_value,
+                "data": calldata,
+                "chainId": 11155111,  # Sepolia
+                "gas": str(estimated_gas),
                 "intent_summary": f"Donate {amount} {token} via {vault_type} Vault"
             },
             "details": {
                 "amount": amount,
                 "token": token,
                 "vault_type": vault_type,
+                "recipient": recipient_address,
+                "token_contract": SEPOLIA_TOKEN_CONTRACTS.get(token) if token != "ETH" else None,
                 "estimated_gas": estimated_gas
             },
             "message": f"I have prepared a {vault_type} donation of {amount} {token}. Please sign the transaction to proceed."

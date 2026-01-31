@@ -31,24 +31,87 @@ class GaiaLinkService:
         """
         try:
             print(f"--- Service: Processing message '{message}' ---")
-            
+
+            # Intent Detection removed - OpenAI doesn't have Gemini's function calling restrictions
+            # Let the Agent handle all messages naturally
+
             # 1. Run the Agent
             response_text = await self.agent.run(message)
             print(f"--- Service: Raw Agent Response ---\n{response_text}\n-------------------------------")
             
             # 2. Parse JSON Response
             data = self._parse_json(response_text)
-            
+
             # 3. Intercept Tool Execution (Fix for Agent returning raw tool_code)
             if "tool_code" in data:
                 return await self._handle_tool_interception(data["tool_code"])
-                
-            # 4. Standard Response
+
+            # 4. Detect donation response from plain text (Agent didn't return JSON)
+            action_taken = data.get("action_taken", "chat")
+            transaction_payload = data.get("transaction_payload")
+            ui_hints = data.get("ui_hints", {"mode": "IDLE", "actions": []})
+
+            # Check if plain text response contains donation transaction details
+            if action_taken == "chat" and self._is_donation_response(response_text):
+                print("--- Service: Detected donation response in plain text ---")
+                amount = self._extract_amount_from_message(response_text)
+                token = self._extract_token_from_message(response_text)
+
+                tool = ExecuteDonationTool()
+                result = await tool.execute(
+                    amount=amount,
+                    token=token,
+                    recipient_address="0x742d35Cc6634C0532925a3b844Bc9e7595f5bE91"
+                )
+
+                return ChatResponse(
+                    message=data.get("message", response_text),
+                    action_taken="execute_donation",
+                    ui_hints={
+                        "mode": "SIGNATURE",
+                        "display_data": {
+                            "title": f"Donate {amount} {token}",
+                            "badge_text": "Ready to Sign",
+                            "badge_color": "green",
+                            "risk_level": "LOW"
+                        },
+                        "actions": [{"label": "Sign Transaction", "type": "sign_transaction", "icon": "pen-tool"}]
+                    },
+                    transaction_payload=result.get("transaction_payload")
+                )
+
+            if action_taken == "execute_donation" and not transaction_payload:
+                # Agent said it prepared donation but didn't include payload - generate it
+                print("--- Service: Generating missing transaction_payload ---")
+                amount = self._extract_amount_from_message(data.get("message", ""))
+                token = self._extract_token_from_message(data.get("message", ""))
+
+                tool = ExecuteDonationTool()
+                result = await tool.execute(
+                    amount=amount,
+                    token=token,
+                    recipient_address="0x742d35Cc6634C0532925a3b844Bc9e7595f5bE91"
+                )
+                transaction_payload = result.get("transaction_payload")
+
+                # Ensure UI mode is SIGNATURE for donation
+                ui_hints = {
+                    "mode": "SIGNATURE",
+                    "display_data": {
+                        "title": f"Donate {amount} {token}",
+                        "badge_text": "Ready to Sign",
+                        "badge_color": "green",
+                        "risk_level": "LOW"
+                    },
+                    "actions": [{"label": "Sign Transaction", "type": "sign_transaction", "icon": "pen-tool"}]
+                }
+
+            # 5. Standard Response
             return ChatResponse(
                 message=data.get("message", response_text),
-                action_taken=data.get("action_taken", "chat"),
-                ui_hints=data.get("ui_hints", {"mode": "IDLE", "actions": []}),
-                transaction_payload=data.get("transaction_payload")
+                action_taken=action_taken,
+                ui_hints=ui_hints,
+                transaction_payload=transaction_payload
             )
 
         except Exception as e:
@@ -61,17 +124,56 @@ class GaiaLinkService:
             )
 
     def _parse_json(self, text: str) -> Dict[str, Any]:
-        """Robust JSON parsing from LLM output"""
+        """Parse JSON from LLM output - simplified for OpenAI"""
         clean_text = text
+
+        # Extract JSON from markdown code blocks if present
         if "```" in clean_text:
             match = re.search(r'```(?:json)?\s*(.*?)```', clean_text, re.DOTALL)
             if match:
                 clean_text = match.group(1).strip()
+
+        # Try to parse as JSON
         try:
             return json.loads(clean_text)
         except json.JSONDecodeError:
-            # Fallback if not valid JSON
+            # Not JSON - return as plain chat response
             return {"message": text, "action_taken": "chat"}
+
+    def _extract_amount_from_message(self, message: str) -> float:
+        """Extract donation amount from message text"""
+        # Match patterns like "100 USDC", "10.5 ETH", etc.
+        match = re.search(r'(\d+(?:\.\d+)?)\s*(?:USDC|USDT|ETH|DAI)', message, re.IGNORECASE)
+        if match:
+            return float(match.group(1))
+        # Fallback: try to find any number
+        match = re.search(r'(\d+(?:\.\d+)?)', message)
+        return float(match.group(1)) if match else 100.0
+
+    def _extract_token_from_message(self, message: str) -> str:
+        """Extract token type from message text"""
+        message_upper = message.upper()
+        for token in ["USDC", "USDT", "ETH", "DAI"]:
+            if token in message_upper:
+                return token
+        return "USDC"  # Default
+
+    def _is_donation_response(self, text: str) -> bool:
+        """Detect if plain text response contains donation transaction details"""
+        # Keywords indicating Agent prepared a donation transaction
+        donation_keywords = [
+            "捐款金額",
+            "接收地址",
+            "簽署此交易",
+            "簽署交易",
+            "sign the transaction",
+            "transaction to proceed",
+            "donation transaction",
+            "prepared a donation",
+            "直接捐款"
+        ]
+        text_lower = text.lower()
+        return any(kw.lower() in text_lower for kw in donation_keywords)
 
     async def _handle_tool_interception(self, tool_code: str) -> ChatResponse:
         """
@@ -81,25 +183,29 @@ class GaiaLinkService:
 
         if "list_crises" in tool_code:
             tool = ListCrisesTool()
-            result = tool.execute(limit=5)
-            
-            # Format output
-            crises_text = "\n\n".join([f"🌍 **{c['title']}**\n   📍 {c['location']}\n   🚨 {c['severity']}" for c in result.get("crises", [])])
-            
+            result = await tool.execute(limit=10)
+
+            # Format output (no emoji per user rules)
+            crises_list = result.get("crises", [])
+            crises_text = "\n".join([
+                f"{i+1}. {c['title']} ({c['severity']})\n   Location: {c['location']}"
+                for i, c in enumerate(crises_list[:5])
+            ])
+
             return ChatResponse(
-                message=f"以下是目前的災害列表：\n{crises_text}\n\n請問您想了解哪一個，或進行捐款？",
+                message=f"以下是目前活躍的人道主義危機：\n\n{crises_text}\n\n您可以說「捐款 100 USDC 給土耳其」來進行捐款。",
                 action_taken="list_crises",
                 ui_hints={
                     "mode": "DECISION",
-                    "display_data": { 
-                        "title": "目前活躍的災害危機", 
-                        "badge_text": f"Found {result.get('count', 0)} Crises", 
-                        "badge_color": "yellow", 
-                        "risk_level": "LOW" 
+                    "display_data": {
+                        "title": "Active Humanitarian Crises",
+                        "badge_text": f"{len(crises_list)} Crises",
+                        "badge_color": "yellow",
+                        "risk_level": "LOW"
                     },
                     "actions": [
-                        {"label": "捐款給緊急項目", "type": "input_prompt", "icon": "heart"},
-                        {"label": "查看更多詳情", "type": "input_prompt", "icon": "list"}
+                        {"label": "Donate 100 USDC", "type": "input_prompt", "icon": "heart"},
+                        {"label": "Verify a Crisis", "type": "input_prompt", "icon": "search"}
                     ]
                 }
             )
@@ -143,10 +249,37 @@ class GaiaLinkService:
             )
             
         elif "execute_donation" in tool_code:
-             # Fallback logic for donation if Agent returns code instead of payload
-             # This matches the fallback logic previously in server.py
-             pass
-             
+            # Extract amount from tool_code
+            amount_match = re.search(r"amount=(\d+(?:\.\d+)?)", tool_code)
+            amount = float(amount_match.group(1)) if amount_match else 100.0
+
+            # Extract token
+            token_match = re.search(r"token=['\"]?(\w+)['\"]?", tool_code)
+            token = token_match.group(1).upper() if token_match else "USDC"
+
+            tool = ExecuteDonationTool()
+            result = await tool.execute(
+                amount=amount,
+                token=token,
+                recipient_address="0x742d35Cc6634C0532925a3b844Bc9e7595f5bE91"
+            )
+
+            return ChatResponse(
+                message=f"Ready to donate {amount} {token}. Please sign the transaction.",
+                action_taken="execute_donation",
+                ui_hints={
+                    "mode": "SIGNATURE",
+                    "display_data": {
+                        "title": f"Donate {amount} {token}",
+                        "badge_text": "Ready to Sign",
+                        "badge_color": "green",
+                        "risk_level": "LOW"
+                    },
+                    "actions": [{"label": "Sign Transaction", "type": "sign_transaction", "icon": "pen-tool"}]
+                },
+                transaction_payload=result.get("transaction_payload")
+            )
+
         # Default fallback if tool code not recognized
         return ChatResponse(
             message=f"Agent requested tool execution: {tool_code}",

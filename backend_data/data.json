@@ -27,17 +27,21 @@
             "vaults": [
                 {
                     "type": "DIRECT",
-                    "address": "0xDirectVaultTurkey...",
+                    "address": "0x742d35Cc6634C0532925a3b844Bc9e7595f5bE91",
                     "token": "USDC",
-                    "network": "Sepolia"
+                    "token_contract": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+                    "network": "Sepolia",
+                    "chainId": 11155111
                 },
                 {
                     "type": "YIELD",
                     "protocol": "Euler",
-                    "address": "0xYieldVaultTurkey...",
+                    "address": "0x742d35Cc6634C0532925a3b844Bc9e7595f5bE91",
                     "apy": "4.5%",
                     "token": "USDC",
-                    "network": "Sepolia"
+                    "token_contract": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+                    "network": "Sepolia",
+                    "chainId": 11155111
                 }
             ]
         },
@@ -68,17 +72,21 @@
             "vaults": [
                 {
                     "type": "DIRECT",
-                    "address": "0xUkraineDirectVault...",
-                    "token": "USDT",
-                    "network": "Ethereum"
+                    "address": "0x742d35Cc6634C0532925a3b844Bc9e7595f5bE91",
+                    "token": "USDC",
+                    "token_contract": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+                    "network": "Sepolia",
+                    "chainId": 11155111
                 },
                 {
                     "type": "YIELD",
                     "protocol": "Pendle",
-                    "address": "0xUkraineYieldVault...",
+                    "address": "0x742d35Cc6634C0532925a3b844Bc9e7595f5bE91",
                     "apy": "5.2%",
-                    "token": "stETH",
-                    "network": "Ethereum"
+                    "token": "USDC",
+                    "token_contract": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+                    "network": "Sepolia",
+                    "chainId": 11155111
                 }
             ]
         },
@@ -107,8 +115,11 @@
             "vaults": [
                 {
                     "type": "DIRECT",
-                    "address": "0xDirectVaultGaza...",
-                    "token": "USDC"
+                    "address": "0x742d35Cc6634C0532925a3b844Bc9e7595f5bE91",
+                    "token": "USDC",
+                    "token_contract": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+                    "network": "Sepolia",
+                    "chainId": 11155111
                 }
             ]
         },
@@ -137,9 +148,11 @@
             "vaults": [
                 {
                     "type": "DIRECT",
-                    "address": "0xSudanReliefVault...",
+                    "address": "0x742d35Cc6634C0532925a3b844Bc9e7595f5bE91",
                     "token": "USDC",
-                    "network": "Optimism"
+                    "token_contract": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+                    "network": "Sepolia",
+                    "chainId": 11155111
                 }
             ]
         },
@@ -168,8 +181,11 @@
             "vaults": [
                 {
                     "type": "DIRECT",
-                    "address": "0xYemenVault...",
-                    "token": "DAI"
+                    "address": "0x742d35Cc6634C0532925a3b844Bc9e7595f5bE91",
+                    "token": "USDC",
+                    "token_contract": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+                    "network": "Sepolia",
+                    "chainId": 11155111
                 }
             ]
         },
@@ -269,9 +285,12 @@
                 {
                     "type": "YIELD",
                     "protocol": "Aave",
-                    "address": "0xPakistanYield...",
+                    "address": "0x742d35Cc6634C0532925a3b844Bc9e7595f5bE91",
                     "apy": "3.2%",
-                    "token": "USDC"
+                    "token": "USDC",
+                    "token_contract": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+                    "network": "Sepolia",
+                    "chainId": 11155111
                 }
             ]
         },
@@ -346,8 +365,11 @@
             "vaults": [
                 {
                     "type": "DIRECT",
-                    "address": "0xMauiFund...",
-                    "token": "USDC"
+                    "address": "0x742d35Cc6634C0532925a3b844Bc9e7595f5bE91",
+                    "token": "USDC",
+                    "token_contract": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+                    "network": "Sepolia",
+                    "chainId": 11155111
                 }
             ]
         },
@@ -401,9 +423,12 @@
                 {
                     "type": "YIELD",
                     "protocol": "Toucan",
-                    "address": "0xAmazonCarbon...",
+                    "address": "0x742d35Cc6634C0532925a3b844Bc9e7595f5bE91",
                     "apy": "2.1%",
-                    "token": "BCT"
+                    "token": "USDC",
+                    "token_contract": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+                    "network": "Sepolia",
+                    "chainId": 11155111
                 }
             ]
         },
@@ -501,8 +526,11 @@
             "vaults": [
                 {
                     "type": "DIRECT",
-                    "address": "0xBanglaRelief...",
-                    "token": "DAI"
+                    "address": "0x742d35Cc6634C0532925a3b844Bc9e7595f5bE91",
+                    "token": "USDC",
+                    "token_contract": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+                    "network": "Sepolia",
+                    "chainId": 11155111
                 }
             ]
         },

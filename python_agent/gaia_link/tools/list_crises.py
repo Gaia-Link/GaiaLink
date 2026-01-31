@@ -38,7 +38,7 @@ class ListCrisesTool(BaseTool):
         "required": [],
     }
 
-    def execute(self, severity_filter: str = None, limit: int = 10) -> Dict[str, Any]:
+    async def execute(self, severity_filter: str = None, limit: int = 10) -> Dict[str, Any]:
         """
         Executes the tool to list crises.
         """

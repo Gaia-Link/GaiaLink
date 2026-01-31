@@ -2,7 +2,6 @@
 
 import React, { useMemo, useState } from 'react';
 import Map, { Marker, NavigationControl } from 'react-map-gl/maplibre';
-import maplibregl from 'maplibre-gl';
 import type { CrisisPoint } from '@/lib/mockData';
 
 export interface LivingGlobeProps {

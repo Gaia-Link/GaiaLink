@@ -80,6 +80,20 @@ Required JSON Structure:
 - If amount is given, CALL execute_donation immediately.
 - If user asks to "analyze" or "verify" a crisis, CALL 'verify_crisis' immediately with the crisis name.
 - Use Traditional Chinese (繁體中文) for 'message' field unless user speaks English.
+
+## FINAL OUTPUT RULE (CRITICAL - READ THIS CAREFULLY)
+When you receive tool execution results (text starting with "Observed output of cmd..."):
+1. DO NOT output any intermediate text or thinking
+2. DO NOT use "Step 1:", "Step 2:" or any prefixes
+3. IMMEDIATELY output ONLY a valid JSON object
+4. The JSON must follow the exact structure specified above
+
+Example of WRONG output:
+Step 1: Observed output of cmd list_crises execution: {...}
+Step 2: Here are the crises...
+
+Example of CORRECT output:
+{"message": "...", "action_taken": "list_crises", "ui_hints": {"mode": "DECISION", "actions": []}}
 """
 
 
@@ -102,9 +116,9 @@ class GaiaLinkAgent(SpoonReactAI):
     system_prompt: str = GAIA_LINK_SYSTEM_PROMPT
 
     next_step_prompt: str = (
-        "Based on the previous analysis, determine the next action. "
-        "If crisis verification is complete, provide a recommendation. "
-        "If donation is requested, verify recipient and execute transaction."
+        "Tool execution complete. Output ONLY a valid JSON response now. "
+        "No explanations, no prefixes, no markdown - just the raw JSON object. "
+        "Use the tool results to construct your response."
     )
 
     max_steps: int = 5
@@ -122,41 +136,33 @@ class GaiaLinkAgent(SpoonReactAI):
     def __init__(self, **data):
         from gaia_link.config import get_settings
         settings = get_settings()
-        
+
         # Initialize LLM using ChatBot class (required by SpoonReactAI)
+        # SpoonOS ChatBot reads API keys from environment variables:
+        # - GEMINI_API_KEY for Gemini
+        # - OPENAI_API_KEY for OpenAI
         try:
-            # Attempt to import ChatBot from spoon_ai.chat based on user feedback
             from spoon_ai.chat import ChatBot
-            
+
             provider = settings.llm_provider
-            model = settings.gemini_model if provider == "gemini" else "gpt-4"
-            api_key = settings.google_api_key if provider == "gemini" else settings.openai_api_key
-            
+            model = settings.gemini_model if provider == "gemini" else "gpt-4o-mini"
+
             print(f"--- ChatBot Init: Provider={provider}, Model={model} ---")
-            
-            # Create ChatBot instance
-            # Note: passing api_key might be needed depending on ChatBot implementation, 
-            # checking if it accepts it or relies on env vars. 
-            # We pass it just in case, or rely on env vars if it ignores kwargs.
+
+            # ChatBot reads API keys from env vars (GEMINI_API_KEY, OPENAI_API_KEY)
             chatbot = ChatBot(
                 llm_provider=provider,
                 model_name=model,
-                api_key=api_key
+                temperature=0.3
             )
-            
-            # Pass the ChatBot instance as 'llm' field
+
             data['llm'] = chatbot
 
         except ImportError as e:
             print(f"--- Error: Could not import ChatBot from spoon_ai.chat: {e} ---")
-            # Fallback (which might fail validation, but better than nothing)
-            if settings.llm_provider == "gemini":
-                data["llm_provider"] = "gemini"
-                data["model"] = settings.gemini_model
-                data["api_key"] = settings.google_api_key
         except Exception as e:
             print(f"--- Error initializing ChatBot: {e} ---")
-            
+
         super().__init__(**data)
 
     def get_info(self) -> dict:

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://unpkg.com/knip@latest/schema.json",
+  "entry": [
+    "src/app/**/*.tsx",
+    "src/app/**/*.ts"
+  ],
+  "project": [
+    "src/**/*.ts",
+    "src/**/*.tsx"
+  ],
+  "ignore": [
+    ".next/**"
+  ],
+  "ignoreDependencies": [
+    "postcss",
+    "@vitest/coverage-v8",
+    "tailwindcss"
+  ]
+}

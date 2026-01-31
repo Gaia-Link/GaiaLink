@@ -1,12 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import dynamic from 'next/dynamic';
 import Overlay from '@/features/forum/components/Overlay';
 import SpoonOSInterface from '@/features/spoon-os/components/SpoonOSInterface';
 import DonationModal from '@/features/donation/components/DonationModal';
 import LivingGlobe from '@/features/globe/components/LivingGlobe';
-import { CrisisPoint, MOCK_DATA } from '@/lib/mockData';
+import { CrisisPoint } from '@/lib/mockData';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import RpcTester from '@/features/debug/RpcTester';
 

@@ -58,7 +58,7 @@ describe('agentService (Unit)', () => {
         const response = await sendMessageToAgent("Hello world");
 
         // Should fall back to generic error logic
-        expect(response.action_taken).toBe("error");
+        expect(response.action_taken).toBe("connection_error");
         expect(response.ui_hints.mode).toBe("IDLE");
     });
 });

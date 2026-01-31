@@ -46,6 +46,39 @@ from gaia_link.services.audit import (
     get_in_memory_audit_logger,
 )
 
+# Proposal Service (V2)
+from gaia_link.services.proposal import (
+    ProposalStatus,
+    ProposalInfo,
+    ContributionInfo,
+    InstitutionInfo,
+    ProposalService,
+    WhitelistService,
+    MockProposalService,
+    MockWhitelistService,
+    get_proposal_service,
+    get_whitelist_service,
+    set_proposal_service,
+    set_whitelist_service,
+    reset_services as reset_proposal_services,
+)
+
+# X402 Payment Service (V2)
+from gaia_link.services.x402 import (
+    PaymentStatus,
+    PaymentRequirements,
+    PaymentRequest,
+    PaymentHeader,
+    VerifyResult,
+    SettleResult,
+    PaymentReceipt,
+    X402Config,
+    X402Service,
+    get_x402_service,
+    set_x402_service,
+    reset_x402_service,
+)
+
 
 # SepoliaBlockchainService 需要 web3 依賴，延遲導入
 def get_sepolia_service(*args, **kwargs):
@@ -73,6 +106,32 @@ def get_huggingface_sentiment_service(*args, **kwargs):
     )
 
     return _get_hf(*args, **kwargs)
+
+
+# =============================================================================
+# Blockchain Integration (Web3) - 延遲導入
+# =============================================================================
+
+
+def get_gaia_proposal_service(*args, **kwargs):
+    """工廠函數：創建 GaiaProposalService 實例 (真實區塊鏈)"""
+    from gaia_link.services.blockchain.gaia_proposal import GaiaProposalService
+
+    return GaiaProposalService(*args, **kwargs)
+
+
+def get_gaia_whitelist_service(*args, **kwargs):
+    """工廠函數：創建 GaiaWhitelistService 實例 (真實區塊鏈)"""
+    from gaia_link.services.blockchain.gaia_whitelist import GaiaWhitelistService
+
+    return GaiaWhitelistService(*args, **kwargs)
+
+
+def get_web3_provider(*args, **kwargs):
+    """工廠函數：創建 Web3Provider 實例"""
+    from gaia_link.services.blockchain.provider import Web3Provider
+
+    return Web3Provider(*args, **kwargs)
 
 
 __all__ = [
@@ -109,4 +168,35 @@ __all__ = [
     "AuditQuery",
     "InMemoryAuditLogger",
     "get_in_memory_audit_logger",
+    # Proposal Service (V2)
+    "ProposalStatus",
+    "ProposalInfo",
+    "ContributionInfo",
+    "InstitutionInfo",
+    "ProposalService",
+    "WhitelistService",
+    "MockProposalService",
+    "MockWhitelistService",
+    "get_proposal_service",
+    "get_whitelist_service",
+    "set_proposal_service",
+    "set_whitelist_service",
+    "reset_proposal_services",
+    # X402 Payment Service (V2)
+    "PaymentStatus",
+    "PaymentRequirements",
+    "PaymentRequest",
+    "PaymentHeader",
+    "VerifyResult",
+    "SettleResult",
+    "PaymentReceipt",
+    "X402Config",
+    "X402Service",
+    "get_x402_service",
+    "set_x402_service",
+    "reset_x402_service",
+    # Blockchain Integration (V2)
+    "get_gaia_proposal_service",
+    "get_gaia_whitelist_service",
+    "get_web3_provider",
 ]

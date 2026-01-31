@@ -1,6 +1,38 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { WagmiProvider, createConfig, http } from 'wagmi';
+import { sepolia } from 'wagmi/chains';
 import SpoonOSInterface from './SpoonOSInterface';
+
+// Create a minimal wagmi config for testing
+const testConfig = createConfig({
+    chains: [sepolia],
+    transports: {
+        [sepolia.id]: http(),
+    },
+});
+
+const queryClient = new QueryClient({
+    defaultOptions: {
+        queries: { retry: false },
+    },
+});
+
+// Wrapper component for tests
+function TestWrapper({ children }: { children: React.ReactNode }) {
+    return (
+        <WagmiProvider config={testConfig}>
+            <QueryClientProvider client={queryClient}>
+                {children}
+            </QueryClientProvider>
+        </WagmiProvider>
+    );
+}
+
+// Custom render with providers
+const customRender = (ui: React.ReactElement, options = {}) =>
+    render(ui, { wrapper: TestWrapper, ...options });
 
 // Define minimal mock responses locally to avoid importing actual module in mock factory
 const LocalMockResponses = {
@@ -38,20 +70,20 @@ vi.mock('../services/agentService', () => {
 
 describe('SpoonOSInterface Integration', () => {
     it('renders in IDLE mode initially (or hidden)', () => {
-        render(<SpoonOSInterface isOpen={false} onClose={() => { }} selectedPoint={null} onAction={() => { }} />);
+        customRender(<SpoonOSInterface isOpen={false} onClose={() => { }} selectedPoint={null} onAction={() => { }} />);
         const input = screen.queryByRole('textbox');
         // When IDLE/Hidden, input might not be interactive or present depending on implementation details
         // but checking it doesn't crash is good.
     });
 
     it('activates LISTENING mode when opened', () => {
-        render(<SpoonOSInterface isOpen={true} onClose={() => { }} selectedPoint={null} onAction={() => { }} />);
+        customRender(<SpoonOSInterface isOpen={true} onClose={() => { }} selectedPoint={null} onAction={() => { }} />);
         const input = screen.getByRole('textbox');
         expect(input).toBeDefined();
     });
 
     it('enters THINKING mode and keeps expanded view during processing', async () => {
-        render(<SpoonOSInterface isOpen={true} onClose={() => { }} selectedPoint={null} onAction={() => { }} />);
+        customRender(<SpoonOSInterface isOpen={true} onClose={() => { }} selectedPoint={null} onAction={() => { }} />);
 
         const input = screen.getByRole('textbox');
         fireEvent.change(input, { target: { value: 'delay_me turkey' } });
@@ -80,7 +112,7 @@ describe('SpoonOSInterface Integration', () => {
     });
 
     it('submits query and displays message response', async () => {
-        render(<SpoonOSInterface isOpen={true} onClose={() => { }} selectedPoint={null} onAction={() => { }} />);
+        customRender(<SpoonOSInterface isOpen={true} onClose={() => { }} selectedPoint={null} onAction={() => { }} />);
 
         const input = screen.getByRole('textbox');
         fireEvent.change(input, { target: { value: 'Turkey earthquake' } });
@@ -98,7 +130,7 @@ describe('SpoonOSInterface Integration', () => {
     });
 
     it('re-opens in expanded DECISION mode if history exists', async () => {
-        const { rerender } = render(<SpoonOSInterface isOpen={true} onClose={() => { }} selectedPoint={null} onAction={() => { }} />);
+        const { rerender } = customRender(<SpoonOSInterface isOpen={true} onClose={() => { }} selectedPoint={null} onAction={() => { }} />);
 
         // 1. Send a message to populate history
         const input = screen.getByRole('textbox');

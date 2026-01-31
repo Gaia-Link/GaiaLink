@@ -110,10 +110,13 @@ export const MockAgentResponses: Record<string, AgentResponse> = {
             ]
         },
         transaction_payload: {
-            to: "0xDem0VaultAddressForTurkeyRelief00000000",
+            // Sepolia USDC contract address
+            to: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
             value: "0",
-            data: "0xa9059cbb000000000000000000000000...", // mock ERC20 transfer(to, 100)
+            // transfer(0x742d35Cc6634C0532925a3b844Bc9e7595f5bE91, 100000000) - 100 USDC
+            data: "0xa9059cbb000000000000000000000000742d35cc6634c0532925a3b844bc9e7595f5be910000000000000000000000000000000000000000000000000000000005f5e100",
             chainId: 11155111,
+            gas: "65000",
             intent_summary: "Donate 100 USDC via DIRECT Vault"
         }
     },
@@ -153,18 +156,39 @@ export async function sendMessageToAgent(message: string, context?: any): Promis
         return data as AgentResponse;
 
     } catch (error) {
-        console.error("Agent API connection failed, falling back to specific mocks or error:", error);
+        console.error("Agent API connection failed:", error);
 
         // Fallback for demo if server is down
         const lowerMsg = message.toLowerCase();
         if (lowerMsg.includes('100') || (lowerMsg.includes('donate') && lowerMsg.includes('usdc'))) {
-            return MockAgentResponses['donate_intent'];
+            const fallback = MockAgentResponses['donate_intent'];
+            return {
+                ...fallback,
+                message: "[DEMO MODE] " + fallback.message + " (Backend offline - using cached response)",
+                ui_hints: {
+                    ...fallback.ui_hints,
+                    display_data: {
+                        title: fallback.ui_hints.display_data?.title || "Donation Ready",
+                        risk_level: fallback.ui_hints.display_data?.risk_level || "LOW",
+                        badge_text: "Demo Mode",
+                        badge_color: "yellow"
+                    }
+                }
+            };
         }
 
         return {
-            message: "I'm having trouble connecting to my brain (Python Backend). Please ensure the agent server is running on port 8000.",
-            action_taken: "error",
-            ui_hints: { mode: "IDLE" }
+            message: "[Backend Offline] Unable to connect to the GaiaLink Agent server. Please ensure the Python backend is running on port 8000.",
+            action_taken: "connection_error",
+            ui_hints: {
+                mode: "IDLE",
+                display_data: {
+                    title: "Connection Error",
+                    badge_text: "Offline",
+                    badge_color: "red",
+                    risk_level: "LOW"
+                }
+            }
         };
     }
 }
