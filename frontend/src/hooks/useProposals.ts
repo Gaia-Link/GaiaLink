@@ -1,47 +1,32 @@
 import { useMemo } from 'react';
-import { useReadContract, useReadContracts } from 'wagmi';
-import { GAIA_PROPOSAL_MANAGER_ABI, GAIA_CHARITY_REGISTRY_ABI } from '@/lib/abis';
+import { useReadContract } from 'wagmi';
+import { foundry } from 'wagmi/chains';
+import { GAIA_PROPOSAL_MANAGER_ABI } from '@/lib/abis';
 import { PROPOSAL_MANAGER_ADDRESS } from '@/lib/constants';
 import { CrisisPoint } from '@/lib/mockData';
 import { PROPOSAL_DESCRIPTIONS } from '@/lib/descriptions';
 
 export function useProposals() {
-    // 1. Fetch all proposals in one bulk call
-    const { data: allProposals } = useReadContract({
+    // Fetch all proposals in one bulk call
+    const { data: allProposals, error, isLoading, isError } = useReadContract({
         address: PROPOSAL_MANAGER_ADDRESS,
         abi: GAIA_PROPOSAL_MANAGER_ABI,
         functionName: 'getAllProposals',
+        chainId: foundry.id,
     });
 
-    // 2. Prepare calls for charities (keeping this as is for now)
-    const charityRegistryAddress = useReadContract({
-        address: PROPOSAL_MANAGER_ADDRESS,
-        abi: GAIA_PROPOSAL_MANAGER_ABI,
-        functionName: 'charityRegistry',
-    });
+    // Debug logging
+    console.log('[useProposals] Loading:', isLoading, 'Error:', isError, error?.message);
+    console.log('[useProposals] Raw data:', allProposals ? `${(allProposals as any[]).length} proposals` : 'null');
 
-    // We can just iterate over allProposals to get charityIds
-    const charityCalls = useMemo(() => {
-        if (!allProposals) return [];
-        return (allProposals as any[]).map((p) => ({
-            address: charityRegistryAddress.data,
-            abi: GAIA_CHARITY_REGISTRY_ABI,
-            functionName: 'getCharity',
-            args: [p.charityId]
-        }));
-    }, [allProposals, charityRegistryAddress.data]);
-
-    const { data: charitiesData } = useReadContracts({
-        contracts: charityCalls as any,
-        query: {
-            enabled: !!charityRegistryAddress.data && !!allProposals
-        }
-    });
-
-    // 3. Transform to CrisisPoint
+    // Transform to CrisisPoint
     const points = useMemo(() => {
-        if (!allProposals) return [];
+        if (!allProposals) {
+            console.log('[useProposals] No proposals data yet');
+            return [];
+        }
 
+        console.log('[useProposals] Transforming', (allProposals as any[]).length, 'proposals');
         return (allProposals as any[]).map((p, i) => {
             const title = p.title;
             const metadataCid = p.metadata;

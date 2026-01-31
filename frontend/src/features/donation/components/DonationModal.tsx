@@ -4,21 +4,11 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ArrowRight, ShieldCheck, Wallet, Coins, TrendingUp } from 'lucide-react';
 import { CrisisPoint } from '@/lib/mockData';
-import { useWriteContract, useAccount, useWaitForTransactionReceipt, useReadContract, useSimulateContract } from 'wagmi';
+import { useWriteContract, useAccount, useWaitForTransactionReceipt, useReadContract } from 'wagmi';
 import { parseUnits } from 'viem';
 
 import { PROPOSAL_MANAGER_ADDRESS } from '@/lib/constants';
-
-// Basic ABI for Approve
-const ERC20_ABI = [
-    { name: 'approve', type: 'function', inputs: [{ name: 'spender', type: 'address' }, { name: 'amount', type: 'uint256' }], outputs: [{ name: '', type: 'bool' }], stateMutability: 'nonpayable' },
-    { name: 'allowance', type: 'function', inputs: [{ name: 'owner', type: 'address' }, { name: 'spender', type: 'address' }], outputs: [{ name: '', type: 'uint256' }], stateMutability: 'view' }
-] as const;
-
-// ABI for ProposalManager.depositToProposal
-const MANAGER_ABI = [
-    { name: 'depositToProposal', type: 'function', inputs: [{ name: '_proposalId', type: 'uint256' }, { name: '_amount', type: 'uint256' }, { name: '_isNoLoss', type: 'bool' }], outputs: [], stateMutability: 'nonpayable' }
-] as const;
+import { GAIA_PROPOSAL_MANAGER_ABI, MOCK_ERC20_ABI } from '@/lib/abis';
 
 interface DonationModalProps {
     isOpen: boolean;
@@ -43,7 +33,7 @@ export default function DonationModal({ isOpen, onClose, point }: DonationModalP
     // Check Allowance
     const { data: allowance, refetch: refetchAllowance } = useReadContract({
         address: assetAddress,
-        abi: ERC20_ABI,
+        abi: MOCK_ERC20_ABI,
         functionName: 'allowance',
         args: address ? [address, PROPOSAL_MANAGER_ADDRESS as `0x${string}`] : undefined,
         query: {
@@ -62,7 +52,7 @@ export default function DonationModal({ isOpen, onClose, point }: DonationModalP
         try {
             await writeContractAsync({
                 address: assetAddress,
-                abi: ERC20_ABI,
+                abi: MOCK_ERC20_ABI,
                 functionName: 'approve',
                 args: [PROPOSAL_MANAGER_ADDRESS as `0x${string}`, val]
             });
@@ -86,7 +76,7 @@ export default function DonationModal({ isOpen, onClose, point }: DonationModalP
 
             await writeContractAsync({
                 address: PROPOSAL_MANAGER_ADDRESS,
-                abi: MANAGER_ABI,
+                abi: GAIA_PROPOSAL_MANAGER_ABI,
                 functionName: 'depositToProposal',
                 args: [BigInt(pid), val, isNoLoss]
             });
@@ -138,7 +128,12 @@ export default function DonationModal({ isOpen, onClose, point }: DonationModalP
                             <h3 className="text-2xl font-bold text-white">Donation Successful!</h3>
                             <p className="text-gray-400">
                                 You successfully donated <span className="text-white font-mono">{amount} USDC</span> to {point.label}.
-                                {donationType === 'YIELD' && <br /> && <span className="text-blue-400 text-sm mt-2 block">Yield farming active via Euler Finance. Protocol APY: 4.5%</span>}
+                                {donationType === 'YIELD' && (
+                                <>
+                                    <br />
+                                    <span className="text-blue-400 text-sm mt-2 block">Yield farming active via Euler Finance. Protocol APY: 4.5%</span>
+                                </>
+                            )}
                             </p>
                             <button onClick={handleClose} className="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-xl transition mt-4">
                                 Close
@@ -237,7 +232,7 @@ export default function DonationModal({ isOpen, onClose, point }: DonationModalP
                                             try {
                                                 await writeContractAsync({
                                                     address: assetAddress,
-                                                    abi: [...ERC20_ABI, { name: 'mint', type: 'function', inputs: [{ name: 'to', type: 'address' }, { name: 'amount', type: 'uint256' }], outputs: [], stateMutability: 'nonpayable' }],
+                                                    abi: MOCK_ERC20_ABI,
                                                     functionName: 'mint',
                                                     args: [address, parseUnits('1000', 18)]
                                                 });

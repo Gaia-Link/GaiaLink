@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import { motion, useInView } from 'framer-motion';
-import { ArrowDown, Code, Zap, Globe, Lock, Activity, ShieldCheck, Heart, Database, Cpu } from 'lucide-react';
+import { ArrowDown, Zap, Globe, Lock, Activity, ShieldCheck, Database } from 'lucide-react';
 
 interface LandingOverlayProps {
     onLaunch: () => void;

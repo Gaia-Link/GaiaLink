@@ -12,6 +12,8 @@ export function getColorByType(type: CrisisPoint['type']): string {
             return 'rgba(60, 150, 255, 0.9)';
         case 'node':
             return 'rgba(60, 255, 100, 0.9)';
+        case 'warning':
+            return 'rgba(255, 180, 60, 0.9)';
         default:
             return 'rgba(255, 255, 255, 0.7)';
     }

@@ -36,7 +36,7 @@ const config = getDefaultConfig({
         [optimism.id]: http(),
         [arbitrum.id]: http(),
         [base.id]: http(),
-        [foundry.id]: http('http://127.0.0.1:8545'),
+        [foundry.id]: http('http://172.29.231.29:8545'),
     },
 });
 

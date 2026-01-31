@@ -3,7 +3,7 @@
 import { useState, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Wallet, ShieldCheck, TrendingUp, Coins, ChevronDown, ChevronUp, Loader2, ArrowUpRight } from 'lucide-react';
-import { useAccount, useReadContracts, useReadContract, usePublicClient, useWatchContractEvent, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { useAccount, useReadContracts, useReadContract, usePublicClient, useWatchContractEvent, useWriteContract } from 'wagmi';
 import { formatUnits, parseAbiItem } from 'viem';
 import { useQuery } from '@tanstack/react-query';
 import { PROPOSAL_MANAGER_ADDRESS } from '@/lib/constants';
@@ -107,12 +107,6 @@ export default function UserPortfolioModal({ isOpen, onClose }: UserPortfolioMod
         }
     });
 
-    // Map bulk data to internal structure
-    interface BalanceMap {
-        directAmount: bigint;
-        noLossAmount: bigint;
-    }
-
     // Convert array to map for easy lookup by proposalId
     const balances = useMemo(() => {
         if (!portfolioItems) return [];
@@ -123,18 +117,6 @@ export default function UserPortfolioModal({ isOpen, onClose }: UserPortfolioMod
             }
         }));
     }, [portfolioItems]);
-
-    // Helper to get balance for a specific PID (to keep existing logic working)
-    const getBalance = (pid: number) => {
-        if (!portfolioItems) return { direct: 0n, noLoss: 0n };
-        const item = (portfolioItems as any[]).find((p: any) => Number(p.proposalId) === pid);
-        return {
-            direct: item ? item.directAmount : 0n,
-            noLoss: item ? item.noLossAmount : 0n
-        };
-    };
-
-
 
     // -------------------------------------------------------------------------
     // Withdrawal Logic

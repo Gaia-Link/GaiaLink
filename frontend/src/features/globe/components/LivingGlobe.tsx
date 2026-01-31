@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState, useEffect, useRef } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import Map, { Marker, NavigationControl } from 'react-map-gl/maplibre';
 import type { CrisisPoint } from '@/lib/mockData';
 
@@ -13,8 +13,6 @@ export interface LivingGlobeProps {
 }
 
 export default function LivingGlobe({ data, onPointClick, isLaunched = true, activeSection = 0, scrollProgress = 0 }: LivingGlobeProps) {
-    const mapRef = useRef<any>(null); // Reference to map instance
-
     const [viewState, setViewState] = useState({
         longitude: 0,
         latitude: 0, // Center the globe vertically

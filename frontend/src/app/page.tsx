@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useScroll } from 'framer-motion';
-import dynamic from 'next/dynamic';
 
 // Landing Page Components
 import LandingOverlay from '@/features/landing/components/LandingOverlay';

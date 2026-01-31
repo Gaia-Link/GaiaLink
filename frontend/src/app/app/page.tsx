@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import dynamic from 'next/dynamic';
 import Overlay from '@/features/crisis-details/components/Overlay';
 import SpoonOSInterface from '@/features/spoon-os/components/SpoonOSInterface';
 import DonationModal from '@/features/donation/components/DonationModal';
