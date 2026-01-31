@@ -43,23 +43,24 @@ export function useProposals() {
         if (!allProposals) return [];
 
         return (allProposals as any[]).map((p, i) => {
-            // Struct: { proposer, charityId, asset, title, metadata, lat, lng, category, expiry, accepted, ... }
             const title = p.title;
             const metadataCid = p.metadata;
             const lat = Number(p.lat) / 10000;
             const lng = Number(p.lng) / 10000;
 
-            // Mock IPFS Resolve -> Real Descriptions
             const description = PROPOSAL_DESCRIPTIONS[title] || "Detailed impact report pending verification.";
 
-            // Map category to type for visual diversity (Demo Logic)
-            // 1=Earthquake, 2=Flood, 3=Conflict, 4=Drought, 5=Fire, 6=Deforestation
             let type: 'crisis' | 'voice' | 'node' | 'warning' = 'crisis';
             const cat = Number(p.category);
 
-            if (cat === 4) type = 'warning'; // Drought -> Warning (Yellow)
-            if (cat === 6) type = 'node';    // Conservation -> Node (Blue)
-            if (cat === 5) type = 'warning'; // Fire -> Warning (Yellow)
+            if (cat === 4) type = 'warning';
+            if (cat === 6) type = 'node';
+            if (cat === 5) type = 'warning';
+
+            // Funding Logic
+            // Note: We use 18 decimals for local MockERC20
+            const raised = Number((p.totalDirect || 0n) + (p.totalNoLoss || 0n));
+            const hasVault = p.directVault !== "0x0000000000000000000000000000000000000000" || p.noLossVault !== "0x0000000000000000000000000000000000000000";
 
             return {
                 id: i.toString(),
@@ -69,11 +70,13 @@ export function useProposals() {
                 label: title,
                 type,
                 description,
+                raised,
+                hasVault,
                 // On-Chain status
                 accepted: p.accepted,
-                directVault: p.directVault,
-                noLossVault: p.noLossVault,
-                asset: p.asset,
+                directVault: p.directVault as `0x${string}`,
+                noLossVault: p.noLossVault as `0x${string}`,
+                asset: p.asset as `0x${string}`,
             };
         });
     }, [allProposals]);

@@ -8,6 +8,7 @@ export interface CrisisPoint {
     description?: string;
     hasVault?: boolean;
     asset?: string;
+    raised?: number;
 }
 
 export const MOCK_DATA: CrisisPoint[] = [
