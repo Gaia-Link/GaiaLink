@@ -1,104 +1,221 @@
 'use client';
 
-import Link from 'next/link';
-import { motion } from 'framer-motion';
-import { ArrowRight, Globe, ShieldCheck, Heart } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence, useScroll } from 'framer-motion';
+import dynamic from 'next/dynamic';
 
-export default function LandingPage() {
+// Landing Page Components
+import LandingOverlay from '@/features/landing/components/LandingOverlay';
+
+// App Components
+import Overlay from '@/features/crisis-details/components/Overlay';
+import SpoonOSInterface from '@/features/spoon-os/components/SpoonOSInterface';
+import DonationModal from '@/features/donation/components/DonationModal';
+import LivingGlobe from '@/features/globe/components/LivingGlobe';
+import { CrisisPoint } from '@/lib/mockData';
+import { ConnectButton } from '@rainbow-me/rainbowkit';
+import RpcTester from '@/features/debug/RpcTester';
+import { useSendTransaction } from 'wagmi';
+import { History } from 'lucide-react';
+import UserPortfolioModal from '@/features/portfolio/UserPortfolioModal';
+import { useProposals } from '@/hooks/useProposals';
+
+export default function Page() { // Unified Entry Point
+    // --- Global State ---
+    const [isLaunched, setIsLaunched] = useState(false);
+    const [activeSection, setActiveSection] = useState(0);
+    const [scrollProgress, setScrollProgress] = useState(0);
+    const landingScrollRef = useRef<HTMLDivElement>(null);
+    const { scrollYProgress } = useScroll({ container: landingScrollRef });
+
+    // --- App State ---
+    const [selectedPoint, setSelectedPoint] = useState<CrisisPoint | null>(null);
+    const [isSpoonActive, setIsSpoonActive] = useState(false); // Controls dimming
+    const [isSpoonOpen, setIsSpoonOpen] = useState(false);     // Controls visibility
+    const [isDonationOpen, setIsDonationOpen] = useState(false);
+    const [isPortfolioOpen, setIsPortfolioOpen] = useState(false);
+
+    // --- Data & Hooks ---
+    const { sendTransaction } = useSendTransaction();
+    const onChainProposals = useProposals();
+    const data = onChainProposals;
+
+    // --- App Specific Effects ---
+    // Toggle SpoonOS with Spacebar (Only if launched)
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (!isLaunched) return; // Only work in App Mode
+
+            // Prevent triggering if typing in an input
+            if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'TEXTAREA') return;
+
+            if (e.code === 'Space') {
+                e.preventDefault();
+                setIsSpoonOpen(prev => !prev);
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isLaunched]);
+
+    // Track scroll progress from landing overlay
+    useEffect(() => {
+        if (isLaunched) return; // Only track during landing page
+        return scrollYProgress.on("change", (latest) => {
+            console.log('📜 Scroll progress updated:', latest);
+            setScrollProgress(latest);
+        });
+    }, [scrollYProgress, isLaunched]);
+
+    // --- Handlers ---
+    const handleDonate = (point: CrisisPoint) => {
+        setSelectedPoint(point);
+        setIsDonationOpen(true);
+    };
+
+    const handleSpoonAction = (action: string, data?: any) => {
+        console.log('SpoonOS Action:', action, data);
+
+        if (action === 'OPEN_DONATION') {
+            setIsDonationOpen(true);
+            if (data) setSelectedPoint(data);
+        }
+        else if (action === 'sign_proposal') {
+            console.log('📝 Signing proposal transaction...', data);
+            alert('✅ Transaction signed! (Mock)\n\nIn production, this would:\n1. Prompt your wallet to sign\n2. Deploy a new vault proposal on-chain\n3. Show transaction confirmation');
+        }
+        else if (action === 'sign_transaction') {
+            console.log('📝 Signing donation transaction...', data);
+            if (data && data.to && data.value) {
+                try {
+                    sendTransaction({
+                        to: data.to,
+                        value: BigInt(data.value),
+                        data: data.data as `0x${string}`,
+                        chainId: data.chainId
+                    });
+                } catch (error) {
+                    console.error("Transaction failed:", error);
+                    alert("Transaction failed to initiate.");
+                }
+            }
+        }
+        else if (action === 'donate_direct' || action === 'donate_yield') {
+            setIsDonationOpen(true);
+            if (data) setSelectedPoint(data);
+        }
+    };
+
+
     return (
-        <main className="min-h-screen bg-black text-white overflow-hidden relative selection:bg-blue-500/30">
+        <main className="relative h-screen w-full overflow-hidden bg-black text-white">
 
-            {/* Background Elements */}
-            <div className="absolute top-0 left-0 w-full h-full z-0">
-                <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-blue-600/20 rounded-full blur-[128px]" />
-                <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-green-600/20 rounded-full blur-[128px]" />
+            {/* 1. Underlying Persistent Globe Layer */}
+            {/* It sits at z-0. It changes behavior based on isLaunched and activeSection */}
+            <div className={`absolute inset-0 z-0 transition-all duration-1000 ${isSpoonActive && isLaunched ? 'scale-95 opacity-50 blur-sm rounded-3xl overflow-hidden' : 'scale-100 opacity-100 blur-0'}`}>
+                <LivingGlobe
+                    data={data}
+                    onPointClick={setSelectedPoint}
+                    isLaunched={isLaunched}
+                    activeSection={activeSection}
+                    scrollProgress={scrollProgress}
+                />
             </div>
 
-            {/* Navbar */}
-            <nav className="relative z-10 container mx-auto px-6 py-6 flex justify-between items-center bg-white/5 backdrop-blur-sm rounded-b-2xl border-b border-white/10">
-                <div className="text-2xl font-black tracking-tighter">
-                    GAIA<span className="text-blue-500">LINK</span>
-                </div>
-                <div className="hidden md:flex gap-8 text-sm font-medium text-gray-400">
-                    <a href="#features" className="hover:text-white transition-colors">Features</a>
-                    <a href="#about" className="hover:text-white transition-colors">Mission</a>
-                    <a href="#community" className="hover:text-white transition-colors">Community</a>
-                </div>
-                <Link href="/app">
-                    <button className="bg-white text-black px-6 py-2 rounded-full font-bold hover:bg-gray-200 transition-colors flex items-center gap-2 text-sm">
-                        Launch App
-                    </button>
-                </Link>
-            </nav>
 
-            {/* Hero Section */}
-            <section className="relative z-10 container mx-auto px-6 pt-32 pb-20 flex flex-col items-center text-center">
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.8 }}
-                >
-                    <div className="inline-block px-4 py-1.5 rounded-full border border-white/10 bg-white/5 text-blue-400 text-xs font-bold uppercase tracking-widest mb-6">
-                        The Earth is Speaking
-                    </div>
-                    <h1 className="text-6xl md:text-8xl font-black leading-tight tracking-tighter mb-8">
-                        Visualizing <br />
-                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-green-400">
-                            Humanity's Pulse.
-                        </span>
-                    </h1>
-                    <p className="max-w-2xl mx-auto text-xl text-gray-400 mb-10 leading-relaxed">
-                        Gaia Link combines 3D visualization, real-time crisis data, and AI agents to create a decentralized humanitarian aid network.
-                        See where help is needed. Verify with SpoonOS. Act instantly.
-                    </p>
+            {/* 2. Landing Page Overlay (Unmounted or Hidden after Launch) */}
+            <AnimatePresence>
+                {!isLaunched && (
+                    <motion.div
+                        ref={landingScrollRef}
+                        className="absolute inset-0 z-20 overflow-y-auto scroll-smooth"
+                        initial={{ opacity: 1 }}
+                        exit={{ opacity: 0, pointerEvents: 'none', transition: { duration: 1 } }}
+                    >
+                        <LandingOverlay
+                            onLaunch={() => setIsLaunched(true)}
+                            onSectionChange={setActiveSection}
+                        />
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
-                    <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                        <Link href="/app">
-                            <button className="h-14 px-8 rounded-full bg-blue-600 hover:bg-blue-500 text-white font-bold text-lg transition-all flex items-center gap-2 group shadow-lg shadow-blue-900/20">
-                                Enter the Globe
-                                <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
-                            </button>
-                        </Link>
-                        <button className="h-14 px-8 rounded-full border border-white/10 hover:bg-white/5 text-white font-bold text-lg transition-all">
-                            Learn More
-                        </button>
-                    </div>
-                </motion.div>
-            </section>
 
-            {/* Feature Cards */}
-            <section id="features" className="relative z-10 container mx-auto px-6 py-20 border-t border-white/10">
-                <div className="grid md:grid-cols-3 gap-8">
-                    <FeatureCard
-                        icon={<Globe className="text-blue-400" size={32} />}
-                        title="Living Globe"
-                        desc="Real-time 3D visualization of global crisis points (Red Zones) and community voices (Blue Bubbles)."
-                    />
-                    <FeatureCard
-                        icon={<ShieldCheck className="text-green-400" size={32} />}
-                        title="Verified by AI"
-                        desc="SpoonOS Agent cross-references Polymarket and news data to filter out misinformation."
-                    />
-                    <FeatureCard
-                        icon={<Heart className="text-red-400" size={32} />}
-                        title="Direct Impact"
-                        desc="Connect directly with verified organizations and individuals. Donate via crypto with one click."
-                    />
-                </div>
-            </section>
+            {/* 3. Main App UI (Visible after Launch) */}
+            <AnimatePresence>
+                {isLaunched && (
+                    <motion.div
+                        className="absolute inset-0 z-10 pointer-events-none" // pointer-events-none to let clicks pass to Globe where no UI exists
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 1, delay: 0.5 }}
+                    >
+                        {/* Top Bar */}
+                        <div className={`absolute top-0 left-0 w-full p-6 flex justify-between items-start z-10 pointer-events-none transition-opacity duration-500 ${isSpoonActive ? 'opacity-20' : 'opacity-100'}`}>
+                            {/* Brand / Title */}
+                            <div className="pointer-events-auto">
+                                <h1 className="text-4xl font-black text-white tracking-tighter drop-shadow-lg">
+                                    GAIA<span className="text-blue-400">LINK</span>
+                                </h1>
+                                <p className="text-white/70 text-sm max-w-xs mt-2 drop-shadow-md">
+                                    Decentralized Humanitarian Aid Network. <br />
+                                    Visualize. Verify. Act.
+                                </p>
+                            </div>
+
+                            {/* Wallet Connect & Portfolio */}
+                            <div className="pointer-events-auto flex items-center gap-3">
+                                <button
+                                    onClick={() => setIsPortfolioOpen(true)}
+                                    className="p-2.5 bg-white/10 hover:bg-white/20 rounded-xl transition text-white border border-white/5 backdrop-blur-md"
+                                    title="My Donations"
+                                >
+                                    <History size={20} />
+                                </button>
+                                <ConnectButton showBalance={false} />
+                            </div>
+
+                            <RpcTester />
+                        </div>
+
+                        {/* Modals & Interfaces (Pointer events auto inside) */}
+                        <div className="pointer-events-auto">
+                            <Overlay
+                                point={selectedPoint}
+                                onClose={() => setSelectedPoint(null)}
+                                onDonate={handleDonate}
+                            />
+
+                            <SpoonOSInterface
+                                isOpen={isSpoonOpen}
+                                onClose={() => setIsSpoonOpen(false)}
+                                selectedPoint={selectedPoint}
+                                onAction={handleSpoonAction}
+                                onStateChange={setIsSpoonActive}
+                            />
+
+                            <DonationModal
+                                isOpen={isDonationOpen}
+                                onClose={() => setIsDonationOpen(false)}
+                                point={selectedPoint}
+                            />
+
+                            <UserPortfolioModal
+                                isOpen={isPortfolioOpen}
+                                onClose={() => setIsPortfolioOpen(false)}
+                            />
+                        </div>
+
+                        {/* Instructions / Footer */}
+                        <div className={`absolute bottom-8 left-1/2 -translate-x-1/2 text-white/50 text-xs pointer-events-none z-0 transition-opacity ${isSpoonActive ? 'opacity-0' : 'opacity-100'}`}>
+                            Click on Red Zones to view requests. Press <span className="font-bold text-white">SPACE</span> to speak to SpoonOS.
+                        </div>
+
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
         </main>
-    );
-}
-
-function FeatureCard({ icon, title, desc }: { icon: React.ReactNode, title: string, desc: string }) {
-    return (
-        <motion.div
-            whileHover={{ y: -5 }}
-            className="p-8 rounded-3xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
-        >
-            <div className="mb-6 p-4 bg-white/5 w-fit rounded-2xl">{icon}</div>
-            <h3 className="text-2xl font-bold mb-4">{title}</h3>
-            <p className="text-gray-400 leading-relaxed">{desc}</p>
-        </motion.div>
     );
 }

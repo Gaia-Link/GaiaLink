@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import Map, { Marker, NavigationControl } from 'react-map-gl/maplibre';
 import maplibregl from 'maplibre-gl';
 import type { CrisisPoint } from '@/lib/mockData';
@@ -8,15 +8,63 @@ import type { CrisisPoint } from '@/lib/mockData';
 export interface LivingGlobeProps {
     data: CrisisPoint[];
     onPointClick: (point: CrisisPoint) => void;
+    isLaunched?: boolean;
+    activeSection?: number;
+    scrollProgress?: number;
 }
 
-export default function LivingGlobe({ data, onPointClick }: LivingGlobeProps) {
+export default function LivingGlobe({ data, onPointClick, isLaunched = true, activeSection = 0, scrollProgress = 0 }: LivingGlobeProps) {
+    const mapRef = useRef<any>(null); // Reference to map instance
+
     const [viewState, setViewState] = useState({
         longitude: 0,
-        latitude: 20,
-        zoom: 1.5
+        latitude: 0, // Center the globe vertically
+        zoom: 2.3, // Larger globe size
+        pitch: 0, // Flat view for initial landing
+        bearing: 0,
+        padding: { left: 0, right: 0, top: 0, bottom: 0 } as any
     });
     const [selectedId, setSelectedId] = useState<string | null>(null);
+
+    // Effect: Handle Cinematic Transitions & Scroll Rotation
+    useEffect(() => {
+        if (isLaunched) {
+            setViewState(prev => ({
+                ...prev,
+                padding: { left: 0, right: 0, top: 0, bottom: 0 },
+                transitionDuration: 1000,
+            }));
+            return;
+        }
+
+        // Calculate rotation based on scroll progress
+        // Start at longitude 0 (center), rotate smoothly as user scrolls
+        let targetLong = scrollProgress * 360; // Start centered, rotate 360° through scroll
+        let targetLat = 0; // Keep globe centered vertically
+        let targetZoom = 2.3; // Larger globe size
+        let targetPitch = 0; // Keep flat for consistent view
+        let targetBearing = 0; // No camera rotation, only globe spins
+
+        console.log('🌍 Globe Rotation - scrollProgress:', scrollProgress, 'targetLong:', targetLong);
+
+        // Note: Removed section-based zoom/pitch changes to maintain consistent globe size/position
+
+        // Update viewState with minimal transition for smooth scroll-linked rotation
+        setViewState(prev => ({
+            ...prev,
+            longitude: targetLong,
+            latitude: targetLat,
+            zoom: targetZoom,
+            pitch: targetPitch,
+            bearing: targetBearing,
+            padding: { left: 0, right: 0, top: 0, bottom: 0 },
+            // Very small duration for real-time scroll response
+            transitionDuration: 50,
+            transitionEasing: (t: number) => t // Linear for predictable motion
+        } as any));
+
+    }, [activeSection, isLaunched, scrollProgress]);
+
 
     const getMarkerColor = (point: CrisisPoint) => {
         if (point.type === 'voice') return '#4FD1C5'; // Teal for voice
@@ -44,8 +92,10 @@ export default function LivingGlobe({ data, onPointClick }: LivingGlobeProps) {
                 anchor="center"
                 onClick={e => {
                     e.originalEvent.stopPropagation();
-                    onPointClick(point);
-                    setSelectedId(point.id);
+                    if (isLaunched) { // Only clickable when launched
+                        onPointClick(point);
+                        setSelectedId(point.id);
+                    }
                 }}
             >
                 <div
@@ -76,16 +126,16 @@ export default function LivingGlobe({ data, onPointClick }: LivingGlobeProps) {
                     </div>
 
                     {/* Hover Label */}
-                    <div className="absolute top-full mt-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/80 px-2 py-1 rounded text-xs text-white whitespace-nowrap pointer-events-none z-50">
+                    <div className={`absolute top-full mt-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/80 px-2 py-1 rounded text-xs text-white whitespace-nowrap pointer-events-none z-50 ${!isLaunched ? 'hidden' : ''}`}>
                         {point.label}
                     </div>
                 </div>
             </Marker>
         );
-    }), [data, onPointClick, selectedId]);
+    }), [data, onPointClick, selectedId, isLaunched]);
 
     return (
-        <div className="w-full h-full bg-black">
+        <div className="w-full h-full bg-black relative">
             <style jsx global>{`
                 @keyframes pulse {
                     0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 60, 60, 0.7); }
@@ -93,16 +143,34 @@ export default function LivingGlobe({ data, onPointClick }: LivingGlobeProps) {
                     100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 60, 60, 0); }
                 }
             `}</style>
+
+            {/* Visual Overlays for Scrollytelling */}
+            {!isLaunched && activeSection === 1 && (
+                <div className="absolute inset-0 z-10 pointer-events-none mix-blend-overlay bg-red-900/40 backdrop-contrast-125 transition-all duration-1000"></div>
+            )}
+            {!isLaunched && activeSection === 1 && (
+                <div className="absolute inset-0 z-10 pointer-events-none bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20"></div>
+            )}
+
+
             <Map
                 {...viewState}
-                onMove={evt => setViewState(evt.viewState)}
+                onMove={evt => {
+                    if (isLaunched) setViewState(evt.viewState); // Only allow manual move if launched
+                }}
                 style={{ width: '100%', height: '100%' }}
                 mapStyle="https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
                 projection="globe"
                 terrain={{ source: 'raster-dem', exaggeration: 1.5 }}
+                // Disable interactions if not launched
+                scrollZoom={isLaunched}
+                dragPan={isLaunched}
+                dragRotate={isLaunched}
+                doubleClickZoom={isLaunched}
+                touchZoomRotate={isLaunched}
             >
                 {markers}
-                <NavigationControl position="bottom-right" />
+                {isLaunched && <NavigationControl position="bottom-right" />}
             </Map>
         </div>
     );
