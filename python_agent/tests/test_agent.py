@@ -40,14 +40,15 @@ class TestGaiaLinkAgent:
         assert "analyze_sentiment" in agent.system_prompt
         assert "execute_donation" in agent.system_prompt
 
-    def test_agent_has_three_tools(self, agent):
-        """Agent 應註冊三個核心工具"""
+    def test_agent_has_four_tools(self, agent):
+        """Agent 應註冊四個核心工具"""
         tool_names = [tool.name for tool in agent.available_tools]
 
-        assert len(tool_names) == 3
+        assert len(tool_names) == 4
         assert "verify_crisis" in tool_names
         assert "analyze_sentiment" in tool_names
         assert "execute_donation" in tool_names
+        assert "list_crises" in tool_names
 
     def test_agent_tools_are_correct_types(self, agent):
         """Agent 的工具應是正確的類型"""
@@ -68,7 +69,7 @@ class TestGaiaLinkAgent:
         assert info["name"] == "gaia_link_agent"
         assert "description" in info
         assert "tools" in info
-        assert len(info["tools"]) == 3
+        assert len(info["tools"]) == 4
         assert "max_steps" in info
 
     def test_system_prompt_contains_role_definitions(self):
@@ -85,7 +86,9 @@ class TestGaiaLinkAgent:
     def test_system_prompt_contains_response_format(self):
         """系統提示詞應包含回應格式說明"""
         assert "JSON" in GAIA_LINK_SYSTEM_PROMPT
-        assert "recommendation" in GAIA_LINK_SYSTEM_PROMPT.lower()
+        # System prompt 應包含 JSON 結構說明
+        assert "message" in GAIA_LINK_SYSTEM_PROMPT.lower()
+        assert "action_taken" in GAIA_LINK_SYSTEM_PROMPT.lower()
 
 
 class TestAgentSpoonOSCompliance:

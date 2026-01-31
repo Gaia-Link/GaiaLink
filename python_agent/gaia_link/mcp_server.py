@@ -10,6 +10,8 @@ Gaia Link MCP Server - 將 Gaia Link 功能暴露為 MCP 服務
 - verify_crisis: 驗證危機真實性
 - analyze_crisis_sentiment: 分析危機相關文本情感
 - estimate_donation: 估算捐款成本
+- get_donation_history: 獲取用戶捐款歷史
+- get_transaction_status: 查詢單筆交易狀態
 """
 
 from fastmcp import FastMCP, Context
@@ -21,6 +23,7 @@ from gaia_link.config import (
     get_sentiment_service,
     get_blockchain_service,
 )
+from gaia_link.services.donation_history import get_donation_history_service
 
 # 創建 FastMCP 實例
 mcp = FastMCP(
@@ -130,6 +133,125 @@ async def estimate_donation(
         "gas_fee_eth": round(gas_fee_eth, 6),
         "gas_fee_usd": round(gas_fee_usd, 2),
         "total_cost_usd": round(total_cost_usd, 2),
+    }
+
+
+# =============================================================================
+# Donation History Tools
+# =============================================================================
+
+# 有效的時間範圍
+VALID_TIME_RANGES = {"7d", "30d", "90d", "365d", "all"}
+
+# Sepolia Etherscan URL
+ETHERSCAN_BASE_URL = "https://sepolia.etherscan.io/tx"
+
+
+def _mask_wallet_address(address: str) -> str:
+    """
+    部分遮蔽錢包地址
+
+    Args:
+        address: 錢包地址
+
+    Returns:
+        遮蔽後的地址 (例如: 0x1234...5678)
+    """
+    if not address or len(address) < 10:
+        return address
+    return f"{address[:6]}...{address[-4:]}"
+
+
+@mcp.tool()
+async def get_donation_history(
+    wallet_address: str,
+    time_range: str = "30d",
+    limit: int = 50,
+    ctx: Context = None
+) -> dict:
+    """
+    獲取用戶捐款歷史
+
+    查詢指定錢包的捐款記錄，支援時間範圍過濾和數量限制。
+
+    Args:
+        wallet_address: 用戶錢包地址
+        time_range: 時間範圍 (7d, 30d, 90d, 365d, all)，預設 30d
+        limit: 返回最大筆數，預設 50
+        ctx: MCP 上下文
+
+    Returns:
+        包含捐款列表和統計數據的字典
+    """
+    # 驗證 time_range
+    if time_range not in VALID_TIME_RANGES:
+        return {
+            "success": False,
+            "error": f"無效的時間範圍: {time_range}。有效值: {', '.join(VALID_TIME_RANGES)}",
+            "wallet_address": _mask_wallet_address(wallet_address),
+            "time_range": time_range,
+        }
+
+    service = get_donation_history_service()
+    result = await service.get_history(
+        wallet_address=wallet_address,
+        time_range=time_range,
+        limit=limit,
+    )
+
+    # 轉換捐款記錄為字典格式
+    donations = [d.to_dict() for d in result.donations]
+
+    return {
+        "success": True,
+        "wallet_address": _mask_wallet_address(wallet_address),
+        "donations": donations,
+        "total_amount_usd": result.total_amount_usd,
+        "total_count": result.total_count,
+        "time_range": result.time_range,
+    }
+
+
+@mcp.tool()
+async def get_transaction_status(
+    tx_hash: str,
+    ctx: Context = None
+) -> dict:
+    """
+    查詢單筆交易狀態
+
+    根據交易哈希查詢捐款交易的詳細資訊。
+
+    Args:
+        tx_hash: 交易哈希
+        ctx: MCP 上下文
+
+    Returns:
+        包含交易詳情和區塊鏈瀏覽器連結的字典
+    """
+    service = get_donation_history_service()
+    record = await service.get_transaction(tx_hash)
+
+    if record is None:
+        return {
+            "success": False,
+            "found": False,
+            "tx_hash": tx_hash,
+            "error": "找不到此交易記錄",
+        }
+
+    return {
+        "success": True,
+        "found": True,
+        "tx_hash": record.tx_hash,
+        "amount": record.amount,
+        "token": record.token,
+        "recipient": record.recipient,
+        "recipient_address": _mask_wallet_address(record.recipient_address),
+        "timestamp": record.timestamp.isoformat(),
+        "status": record.status.value,
+        "vault_type": record.vault_type.value,
+        "explorer_url": f"{ETHERSCAN_BASE_URL}/{record.tx_hash}",
     }
 
 

@@ -50,6 +50,9 @@ def get_proposal_service() -> ProposalService:
     """
     global _proposal_service
     if _proposal_service is None:
+        # 先取得 whitelist_service (MockProposalService 需要此參數)
+        whitelist = get_whitelist_service()
+
         if _should_use_blockchain():
             try:
                 from gaia_link.services.blockchain.gaia_proposal import GaiaProposalService
@@ -57,12 +60,12 @@ def get_proposal_service() -> ProposalService:
                 logger.info("[BLOCKCHAIN] Using GaiaProposalService (real contract)")
             except ImportError as e:
                 logger.warning("[FALLBACK] web3 not installed, using Mock: %s", e)
-                _proposal_service = MockProposalService()
+                _proposal_service = MockProposalService(whitelist_service=whitelist)
             except Exception as e:
                 logger.warning("[FALLBACK] Blockchain init failed, using Mock: %s", e)
-                _proposal_service = MockProposalService()
+                _proposal_service = MockProposalService(whitelist_service=whitelist)
         else:
-            _proposal_service = MockProposalService()
+            _proposal_service = MockProposalService(whitelist_service=whitelist)
             logger.info("[MOCK] Using MockProposalService")
     return _proposal_service
 

@@ -31,7 +31,9 @@ class TestVerifyCrisisTool:
         """工具應有必要的參數定義"""
         assert "lat" in tool.parameters["properties"]
         assert "long" in tool.parameters["properties"]
-        assert tool.parameters["required"] == ["lat", "long"]
+        assert "crisis_name" in tool.parameters["properties"]
+        # 現在支援兩種模式：名稱或座標，所以沒有強制必要參數
+        assert tool.parameters["required"] == []
 
     @pytest.mark.asyncio
     async def test_execute_returns_verified_for_known_crisis_zone(self, tool):

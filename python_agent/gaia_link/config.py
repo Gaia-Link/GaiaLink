@@ -31,6 +31,12 @@ class SentimentMode(str, Enum):
     HUGGINGFACE = "huggingface"
 
 
+class MemoryTrimStrategy(str, Enum):
+    """Memory 裁剪策略"""
+    FROM_START = "from_start"
+    FROM_END = "from_end"
+
+
 class Settings(BaseSettings):
     """
     應用程式配置
@@ -114,6 +120,22 @@ class Settings(BaseSettings):
         description="HuggingFace 執行設備 (cpu, cuda)",
     )
 
+    # Memory 配置
+    memory_enabled: bool = Field(
+        default=False,
+        description="是否啟用記憶功能",
+    )
+
+    memory_max_tokens: int = Field(
+        default=4000,
+        description="記憶最大 token 數",
+    )
+
+    memory_trim_strategy: MemoryTrimStrategy = Field(
+        default=MemoryTrimStrategy.FROM_END,
+        description="記憶裁剪策略 (from_start, from_end)",
+    )
+
     # 日誌配置
     log_level: str = Field(
         default="INFO",
@@ -163,6 +185,10 @@ class Settings(BaseSettings):
     def is_sentiment_huggingface(self) -> bool:
         """檢查是否為 Sentiment HuggingFace 模式"""
         return self.sentiment_mode == SentimentMode.HUGGINGFACE
+
+    def is_memory_enabled(self) -> bool:
+        """檢查是否啟用記憶功能"""
+        return self.memory_enabled
 
 
 @lru_cache

@@ -14,7 +14,7 @@ import re
 from typing import Dict, Any, Optional
 from pydantic import BaseModel
 
-from gaia_link.agent import GaiaLinkAgent
+from gaia_link.agent_v2 import GaiaLinkAgentV2
 from gaia_link.tools import VerifyCrisisTool, ListCrisesTool, ExecuteDonationTool
 
 from gaia_link.schemas import ChatResponse
@@ -22,8 +22,35 @@ from gaia_link.schemas import ChatResponse
 class GaiaLinkService:
     def __init__(self):
         # Initialize the global agent instance
-        self.agent = GaiaLinkAgent()
-        print(f"--- Service: GaiaLinkAgent Initialized ({self.agent.name}) ---")
+        self.agent = GaiaLinkAgentV2()
+        print(f"--- Service: GaiaLinkAgentV2 Initialized ({self.agent.name}) ---")
+
+    def _reset_agent_memory(self):
+        """
+        Reset agent memory to prevent stale tool_calls causing OpenAI API errors.
+
+        This fixes: "An assistant message with 'tool_calls' must be followed by
+        tool messages responding to each 'tool_call_id'"
+        """
+        try:
+            if hasattr(self.agent, 'memory') and self.agent.memory:
+                if hasattr(self.agent.memory, 'messages'):
+                    self.agent.memory.messages.clear()
+                elif hasattr(self.agent.memory, 'clear'):
+                    self.agent.memory.clear()
+            # Also reset tool_calls if present
+            if hasattr(self.agent, 'tool_calls'):
+                self.agent.tool_calls = None
+            # Reset current_step counter
+            if hasattr(self.agent, 'current_step'):
+                self.agent.current_step = 0
+            print("--- Service: Agent memory reset ---")
+        except Exception as e:
+            print(f"--- Service: Memory reset warning: {e} ---")
+
+    def _is_tool_call_error(self, error_msg: str) -> bool:
+        """Check if error is the OpenAI tool_call_id mismatch error."""
+        return "tool_call_ids did not have response messages" in error_msg
 
     async def process_message(self, message: str) -> ChatResponse:
         """
@@ -32,8 +59,8 @@ class GaiaLinkService:
         try:
             print(f"--- Service: Processing message '{message}' ---")
 
-            # Intent Detection removed - OpenAI doesn't have Gemini's function calling restrictions
-            # Let the Agent handle all messages naturally
+            # NOTE: Do NOT reset memory here - it breaks conversation context.
+            # Memory is only reset when tool_call_id errors occur (in error handler below).
 
             # 1. Run the Agent
             response_text = await self.agent.run(message)
@@ -115,10 +142,34 @@ class GaiaLinkService:
             )
 
         except Exception as e:
-            print(f"--- Service Error: {e} ---")
+            error_msg = str(e)
+            print(f"--- Service Error: {error_msg} ---")
+
+            # Handle tool_call_id mismatch error by recreating agent and retrying
+            if self._is_tool_call_error(error_msg):
+                print("--- Service: Detected tool_call error, recreating agent ---")
+                try:
+                    # Recreate agent to fully reset state
+                    self.agent = GaiaLinkAgentV2()
+                    print("--- Service: Agent recreated, retrying ---")
+
+                    # Retry with fresh agent
+                    response_text = await self.agent.run(message)
+                    data = self._parse_json(response_text)
+
+                    return ChatResponse(
+                        message=data.get("message", response_text),
+                        action_taken=data.get("action_taken", "chat"),
+                        ui_hints=data.get("ui_hints", {"mode": "IDLE", "actions": []}),
+                        transaction_payload=data.get("transaction_payload")
+                    )
+                except Exception as retry_error:
+                    print(f"--- Service: Retry also failed: {retry_error} ---")
+                    error_msg = str(retry_error)
+
             # Fallback for critical errors
             return ChatResponse(
-                message=f"I encountered an internal error: {str(e)}",
+                message=f"I encountered an internal error: {error_msg}",
                 action_taken="error",
                 ui_hints={"mode": "IDLE", "actions": []}
             )
@@ -159,21 +210,33 @@ class GaiaLinkService:
         return "USDC"  # Default
 
     def _is_donation_response(self, text: str) -> bool:
-        """Detect if plain text response contains donation transaction details"""
-        # Keywords indicating Agent prepared a donation transaction
-        donation_keywords = [
-            "捐款金額",
-            "接收地址",
-            "簽署此交易",
-            "簽署交易",
-            "sign the transaction",
-            "transaction to proceed",
-            "donation transaction",
-            "prepared a donation",
-            "直接捐款"
-        ]
-        text_lower = text.lower()
-        return any(kw.lower() in text_lower for kw in donation_keywords)
+        """Detect if response contains a PREPARED donation transaction.
+
+        Uses STRUCTURAL patterns (Ethereum addresses, Gas, contract info) instead of
+        keywords for reliable detection. This avoids issues like "捐款" vs "捐贈".
+
+        Requires at least 3 of these structural indicators:
+        1. Ethereum address (0x + 40 hex chars)
+        2. Gas estimate
+        3. Token amount (e.g., "10 USDC")
+        4. Contract/address terminology
+        """
+        # Pattern 1: Ethereum address (0x followed by 40 hex chars)
+        has_eth_address = bool(re.search(r'0x[a-fA-F0-9]{40}', text))
+
+        # Pattern 2: Gas estimate (various formats)
+        has_gas = bool(re.search(r'[Gg]as[：:]\s*[\d,]+', text))
+
+        # Pattern 3: Token amount with known tokens
+        has_token_amount = bool(re.search(r'\d+(?:\.\d+)?\s*(?:USDC|USDT|ETH|DAI)', text, re.IGNORECASE))
+
+        # Pattern 4: Contract/address terminology (language-agnostic)
+        has_contract_terms = bool(re.search(r'合約|地址|contract|address', text, re.IGNORECASE))
+
+        # Must have at least 3 of 4 patterns to be a prepared transaction
+        patterns_matched = sum([has_eth_address, has_gas, has_token_amount, has_contract_terms])
+
+        return patterns_matched >= 3
 
     async def _handle_tool_interception(self, tool_code: str) -> ChatResponse:
         """

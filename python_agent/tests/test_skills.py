@@ -39,6 +39,12 @@ class TestSkillsDirectoryStructure:
         assert skill_dir.exists(), f"pool-manager skill not found: {skill_dir}"
         assert skill_dir.is_dir()
 
+    def test_donation_tracker_skill_exists(self):
+        """donation-tracker 技能目錄應該存在"""
+        skill_dir = SKILLS_DIR / "donation-tracker"
+        assert skill_dir.exists(), f"donation-tracker skill not found: {skill_dir}"
+        assert skill_dir.is_dir()
+
 
 class TestSkillMdFiles:
     """SKILL.md 文件測試"""
@@ -56,6 +62,11 @@ class TestSkillMdFiles:
     def test_pool_manager_skill_md_exists(self):
         """pool-manager/SKILL.md 應該存在"""
         skill_md = SKILLS_DIR / "pool-manager" / "SKILL.md"
+        assert skill_md.exists(), f"SKILL.md not found: {skill_md}"
+
+    def test_donation_tracker_skill_md_exists(self):
+        """donation-tracker/SKILL.md 應該存在"""
+        skill_md = SKILLS_DIR / "donation-tracker" / "SKILL.md"
         assert skill_md.exists(), f"SKILL.md not found: {skill_md}"
 
 
@@ -238,6 +249,16 @@ class TestSkillScriptsDirectory:
         script = SKILLS_DIR / "crisis-response" / "scripts" / "verify_polymarket.py"
         assert script.exists(), f"Script not found: {script}"
 
+    def test_donation_tracker_scripts_dir_exists(self):
+        """donation-tracker/scripts 目錄應該存在"""
+        scripts_dir = SKILLS_DIR / "donation-tracker" / "scripts"
+        assert scripts_dir.exists(), f"Scripts directory not found: {scripts_dir}"
+
+    def test_track_donation_script_exists(self):
+        """track_donation.py 腳本應該存在"""
+        script = SKILLS_DIR / "donation-tracker" / "scripts" / "track_donation.py"
+        assert script.exists(), f"Script not found: {script}"
+
 
 class TestSkillLoading:
     """技能載入測試 - 使用自定義 SimpleSkillManager"""
@@ -253,6 +274,7 @@ class TestSkillLoading:
         assert "crisis-response" in skill_names
         assert "donation-advisor" in skill_names
         assert "pool-manager" in skill_names
+        assert "donation-tracker" in skill_names
 
     def test_crisis_response_skill_can_be_loaded(self):
         """crisis-response 技能應該可以載入"""
@@ -263,3 +285,13 @@ class TestSkillLoading:
 
         assert skill is not None
         assert skill.name == "crisis-response"
+
+    def test_donation_tracker_skill_can_be_loaded(self):
+        """donation-tracker 技能應該可以載入"""
+        from gaia_link.agent_v2 import SimpleSkillManager
+
+        manager = SimpleSkillManager(skill_paths=[str(SKILLS_DIR)])
+        skill = manager.get_skill("donation-tracker")
+
+        assert skill is not None
+        assert skill.name == "donation-tracker"

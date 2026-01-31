@@ -79,6 +79,35 @@ from gaia_link.services.x402 import (
     reset_x402_service,
 )
 
+# Donation History Service (V2)
+from gaia_link.services.donation_history import (
+    DonationRecord,
+    DonationHistoryResult,
+    DonationStatus,
+    VaultType,
+    DonationHistoryService,
+    MockDonationHistoryService,
+    get_donation_history_service,
+    set_donation_history_service,
+    reset_donation_history_service,
+)
+
+# Pool Service (V2 - Phase 4)
+from gaia_link.services.pool import (
+    VaultType as PoolVaultType,
+    CreatorType,
+    RecommendationPriority,
+    PoolInfo,
+    PoolListResult,
+    PoolRecommendation,
+    YieldInfo,
+    PoolService,
+    MockPoolService,
+    get_pool_service,
+    set_pool_service,
+    reset_pool_service,
+)
+
 
 # SepoliaBlockchainService 需要 web3 依賴，延遲導入
 def get_sepolia_service(*args, **kwargs):
@@ -195,8 +224,31 @@ __all__ = [
     "get_x402_service",
     "set_x402_service",
     "reset_x402_service",
+    # Donation History Service (V2)
+    "DonationRecord",
+    "DonationHistoryResult",
+    "DonationStatus",
+    "VaultType",
+    "DonationHistoryService",
+    "MockDonationHistoryService",
+    "get_donation_history_service",
+    "set_donation_history_service",
+    "reset_donation_history_service",
     # Blockchain Integration (V2)
     "get_gaia_proposal_service",
     "get_gaia_whitelist_service",
     "get_web3_provider",
+    # Pool Service (V2 - Phase 4)
+    "PoolVaultType",
+    "CreatorType",
+    "RecommendationPriority",
+    "PoolInfo",
+    "PoolListResult",
+    "PoolRecommendation",
+    "YieldInfo",
+    "PoolService",
+    "MockPoolService",
+    "get_pool_service",
+    "set_pool_service",
+    "reset_pool_service",
 ]

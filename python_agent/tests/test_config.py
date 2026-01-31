@@ -167,8 +167,9 @@ class TestPolymarketSettings:
     """Polymarket 配置測試"""
 
     def test_default_polymarket_mode(self):
-        """默認應使用 MOCK 模式"""
-        with patch.dict(os.environ, {}, clear=True):
+        """明確設置 mock 模式應使用 MOCK 模式"""
+        # 注意：Pydantic Settings 會讀取 .env 文件，所以我們需要明確設置環境變數
+        with patch.dict(os.environ, {"POLYMARKET_MODE": "mock"}, clear=True):
             settings = Settings()
             assert settings.polymarket_mode == PolymarketMode.MOCK
 
@@ -250,8 +251,9 @@ class TestSentimentSettings:
     """Sentiment 配置測試"""
 
     def test_default_sentiment_mode(self):
-        """默認應使用 MOCK 模式"""
-        with patch.dict(os.environ, {}, clear=True):
+        """明確設置 mock 模式應使用 MOCK 模式"""
+        # 注意：Pydantic Settings 會讀取 .env 文件，所以我們需要明確設置環境變數
+        with patch.dict(os.environ, {"SENTIMENT_MODE": "mock"}, clear=True):
             settings = Settings()
             assert settings.sentiment_mode == SentimentMode.MOCK
 

@@ -28,6 +28,7 @@ from gaia_link.tools import (
     VerifyCrisisTool,
     AnalyzeSentimentTool,
     ExecuteDonationTool,
+    ListCrisesTool,
     # Phase 1-2 Proposal Tools
     CreateProposalTool,
     ContributeProposalTool,
@@ -138,6 +139,20 @@ SYSTEM_PROMPT_V2 = """
   }
 }
 ```
+
+## 捐款交易回應格式 (CRITICAL)
+
+當準備捐款交易時，message 必須包含以下結構化數據：
+
+```
+- 捐贈方式：DIRECT/YIELD
+- 捐贈金額：{amount} {token}
+- 目標合約地址：0x... (40 hex chars)
+- 代幣合約：0x... (40 hex chars)
+- 估算 Gas：{number}
+```
+
+這些字段是前端觸發簽署 UI 的必要條件。缺少任何一個都會導致簽署按鈕不顯示。
 
 ## 技能自動觸發
 
@@ -311,6 +326,7 @@ class GaiaLinkAgentV2(SpoonReactAI):
             VerifyCrisisTool(),
             AnalyzeSentimentTool(),
             ExecuteDonationTool(),
+            ListCrisesTool(),
             # Phase 1-2 Proposal 工具
             CreateProposalTool(),
             ContributeProposalTool(),

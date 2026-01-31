@@ -150,6 +150,12 @@ class ExecuteDonationTool(BaseTool):
         # 注意：請在部署前替換為你自己的 Sepolia 測試錢包
         if not recipient_address:
             recipient_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f5bE91"  # Demo Vault
+        else:
+            # 驗證地址格式 (基本驗證)
+            if not self._is_valid_eth_address(recipient_address):
+                return self._build_error_response(
+                    f"Invalid Ethereum address: {recipient_address}"
+                )
 
         # 獲取代幣小數位數
         decimals = TOKEN_DECIMALS.get(token, 6)
@@ -202,6 +208,23 @@ class ExecuteDonationTool(BaseTool):
             "explorer_url": None,
             "error": error_message,
         }
+
+    def _is_valid_eth_address(self, address: str) -> bool:
+        """
+        驗證 Ethereum 地址格式
+
+        Args:
+            address: 要驗證的地址
+
+        Returns:
+            True 如果地址格式有效
+        """
+        import re
+        if not address:
+            return False
+        # 以太坊地址: 0x + 40 hex characters
+        pattern = r'^0x[a-fA-F0-9]{40}$'
+        return bool(re.match(pattern, address))
 
     def get_supported_tokens(self) -> list[str]:
         """獲取支援的代幣列表"""
