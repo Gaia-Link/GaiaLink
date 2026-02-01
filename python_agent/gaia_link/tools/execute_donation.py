@@ -187,6 +187,7 @@ class ExecuteDonationTool(BaseTool):
         """
         準備捐款交易 Payload
         """
+        print(f"--- Tool: Executing donation. ID: {proposal_id}, Name: {proposal_name}, Amount: {amount}, Action: {action} ---")
         # 輸入驗證
         if amount <= 0:
             return self._build_error_response("Amount must be positive")
@@ -218,6 +219,7 @@ class ExecuteDonationTool(BaseTool):
             from gaia_link.services.proposal import get_proposal_service
             service = get_proposal_service()
             proposals = await service.list_proposals(title_query=proposal_name)
+            print(f"--- Tool: Name resolution for '{proposal_name}' returned {len(proposals)} matches ---")
             if proposals:
                 # 優先完全符合
                 exact_match = next((p for p in proposals if p.title.lower() == proposal_name.lower()), None)
@@ -292,8 +294,9 @@ class ExecuteDonationTool(BaseTool):
 
             # CRITICAL: Prevent direct transfer to ProposalManager
             if recipient_address.lower() == blockchain_config.addresses.proposal_manager.lower():
+                found_msg = f" (Attempted name resolution for '{proposal_name}' but found no matching project on-chain)" if proposal_name else ""
                 return self._build_error_response(
-                    "Direct transfer to ProposalManager is prohibited. Please specify a proposal_id or proposal_name."
+                    f"Direct transfer to ProposalManager is prohibited. Please specify a valid project name or ID.{found_msg}"
                 )
 
         return {

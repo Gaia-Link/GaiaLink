@@ -191,6 +191,7 @@ class GaiaLinkService:
             r'(?:向|給)\s*([^直接\s]+(?: [^直接\s]+)*)\s*(?:直接)?(?:捐款|捐贈|捐)',
             r'donate to\s*(.+?)\s*(?:directly|now|1|usdc|usdt|eth|dai|$)',
             r'幫助\s*(.+)',
+            r'(.*?)\s*(?:的)?幫我',
             # Fallback: anything between '向' and '直接' or '捐'
             r'向\s*(.+?)\s*(?:直接|捐)',
         ]

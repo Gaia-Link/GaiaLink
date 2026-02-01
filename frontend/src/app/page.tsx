@@ -151,8 +151,7 @@ export default function Page() { // Unified Entry Point
                     id: data.id.toString(),
                     lat: data.lat || 0,
                     lng: data.lng || 0,
-                    title: "Proposal Details", // Placeholder
-                    label: "Loading...",
+                    label: "Proposal Details",
                     type: 'node',
                     intensity: 1,
                     hasVault: true,

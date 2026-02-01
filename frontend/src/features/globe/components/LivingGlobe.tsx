@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import Map, { Marker, NavigationControl } from 'react-map-gl/maplibre';
 import type { CrisisPoint } from '@/lib/mockData';
 
