@@ -18,14 +18,51 @@ import { useSendTransaction } from 'wagmi';
 import { History } from 'lucide-react';
 import UserPortfolioModal from '@/features/portfolio/UserPortfolioModal';
 import { useProposals } from '@/hooks/useProposals';
+import VaultCreationModal from '@/features/landing/components/VaultCreationModal';
+
+// Internal component to handle scroll tracking safely
+// This ensures useScroll is only active when the element exists
+function LandingPageWrapper({
+    onScroll,
+    onLaunch,
+    onSectionChange
+}: {
+    onScroll: (val: number) => void,
+    onLaunch: () => void,
+    onSectionChange: (val: number) => void
+}) {
+    const scrollRef = useRef<HTMLDivElement>(null);
+    const { scrollYProgress } = useScroll({ container: scrollRef });
+
+    useEffect(() => {
+        return scrollYProgress.on("change", (latest) => {
+            console.log('📜 Scroll progress updated:', latest);
+            onScroll(latest);
+        });
+    }, [scrollYProgress, onScroll]);
+
+    return (
+        <motion.div
+            ref={scrollRef}
+            className="absolute inset-0 z-20 overflow-y-auto scroll-smooth"
+            initial={{ opacity: 1 }}
+            exit={{ opacity: 0, pointerEvents: 'none', transition: { duration: 1 } }}
+        >
+            <LandingOverlay
+                onLaunch={onLaunch}
+                onSectionChange={onSectionChange}
+            />
+        </motion.div>
+    );
+}
 
 export default function Page() { // Unified Entry Point
     // --- Global State ---
     const [isLaunched, setIsLaunched] = useState(false);
     const [activeSection, setActiveSection] = useState(0);
     const [scrollProgress, setScrollProgress] = useState(0);
-    const landingScrollRef = useRef<HTMLDivElement>(null);
-    const { scrollYProgress } = useScroll({ container: landingScrollRef });
+
+    // REMOVED: Top-level useScroll ref (moved to LandingPageWrapper)
 
     // --- App State ---
     const [selectedPoint, setSelectedPoint] = useState<CrisisPoint | null>(null);
@@ -34,11 +71,23 @@ export default function Page() { // Unified Entry Point
     const [isDonationOpen, setIsDonationOpen] = useState(false);
     const [isPortfolioOpen, setIsPortfolioOpen] = useState(false);
     const [flyToLocation, setFlyToLocation] = useState<{ lng: number, lat: number } | null>(null);
+    const [creationCoords, setCreationCoords] = useState<{ lat: number, lng: number } | null>(null);
+    const [optimisticPoints, setOptimisticPoints] = useState<CrisisPoint[]>([]);
 
     // --- Data & Hooks ---
     const { sendTransaction } = useSendTransaction();
     const onChainProposals = useProposals();
-    const data = onChainProposals;
+
+    // Deduplicate: Remove optimistic points if a real point exists near the same location
+    const filteredOptimistic = optimisticPoints.filter(op => {
+        // If we find a real proposal within ~0.01 degrees, assume it's the confirmed version of this temp point
+        const exists = onChainProposals.some(real =>
+            Math.abs(real.lat - op.lat) < 0.0001 && Math.abs(real.lng - op.lng) < 0.0001
+        );
+        return !exists;
+    });
+
+    const data = [...onChainProposals, ...filteredOptimistic];
 
     // --- App Specific Effects ---
     // Toggle SpoonOS with Spacebar (Only if launched)
@@ -59,19 +108,20 @@ export default function Page() { // Unified Entry Point
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [isLaunched]);
 
-    // Track scroll progress from landing overlay
-    useEffect(() => {
-        if (isLaunched) return; // Only track during landing page
-        return scrollYProgress.on("change", (latest) => {
-            console.log('📜 Scroll progress updated:', latest);
-            setScrollProgress(latest);
-        });
-    }, [scrollYProgress, isLaunched]);
-
     // --- Handlers ---
     const handleDonate = (point: CrisisPoint) => {
         setSelectedPoint(point);
         setIsDonationOpen(true);
+    };
+
+    const handleProposalCreated = (newPoint: CrisisPoint) => {
+        console.log('🚀 Optimistic Update:', newPoint);
+        setOptimisticPoints(prev => [...prev, newPoint]);
+    };
+
+    const handleMapClick = (coords: { lat: number, lng: number }) => {
+        console.log('📍 Map Clicked:', coords);
+        setCreationCoords(coords);
     };
 
     const handleSpoonAction = (action: string, data?: any) => {
@@ -155,6 +205,7 @@ export default function Page() { // Unified Entry Point
                 <LivingGlobe
                     data={data}
                     onPointClick={setSelectedPoint}
+                    onMapClick={handleMapClick}
                     isLaunched={isLaunched}
                     activeSection={activeSection}
                     scrollProgress={scrollProgress}
@@ -166,17 +217,11 @@ export default function Page() { // Unified Entry Point
             {/* 2. Landing Page Overlay (Unmounted or Hidden after Launch) */}
             <AnimatePresence>
                 {!isLaunched && (
-                    <motion.div
-                        ref={landingScrollRef}
-                        className="absolute inset-0 z-20 overflow-y-auto scroll-smooth"
-                        initial={{ opacity: 1 }}
-                        exit={{ opacity: 0, pointerEvents: 'none', transition: { duration: 1 } }}
-                    >
-                        <LandingOverlay
-                            onLaunch={() => setIsLaunched(true)}
-                            onSectionChange={setActiveSection}
-                        />
-                    </motion.div>
+                    <LandingPageWrapper
+                        onScroll={setScrollProgress}
+                        onLaunch={() => setIsLaunched(true)}
+                        onSectionChange={setActiveSection}
+                    />
                 )}
             </AnimatePresence>
 
@@ -244,11 +289,18 @@ export default function Page() { // Unified Entry Point
                                 isOpen={isPortfolioOpen}
                                 onClose={() => setIsPortfolioOpen(false)}
                             />
+
+                            <VaultCreationModal
+                                isOpen={!!creationCoords}
+                                onClose={() => setCreationCoords(null)}
+                                coords={creationCoords}
+                                onProposalCreated={handleProposalCreated}
+                            />
                         </div>
 
                         {/* Instructions / Footer */}
                         <div className={`absolute bottom-8 left-1/2 -translate-x-1/2 text-white/50 text-xs pointer-events-none z-0 transition-opacity ${isSpoonActive ? 'opacity-0' : 'opacity-100'}`}>
-                            Click on Red Zones to view requests. Press <span className="font-bold text-white">SPACE</span> to speak to SpoonOS.
+                            Click on Red Zones to view requests. Click anywhere to deploy a new Vault. Press <span className="font-bold text-white">SPACE</span> to speak to SpoonOS.
                         </div>
 
                     </motion.div>

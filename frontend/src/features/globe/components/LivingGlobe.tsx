@@ -7,13 +7,15 @@ import type { CrisisPoint } from '@/lib/mockData';
 export interface LivingGlobeProps {
     data: CrisisPoint[];
     onPointClick: (point: CrisisPoint) => void;
+    onMapClick?: (coords: { lat: number, lng: number }) => void;
     isLaunched?: boolean;
     activeSection?: number;
     scrollProgress?: number;
     flyToLocation?: { lng: number, lat: number } | null;
 }
 
-export default function LivingGlobe({ data, onPointClick, isLaunched = true, activeSection = 0, scrollProgress = 0, flyToLocation }: LivingGlobeProps) {
+export default function LivingGlobe({ data, onPointClick, onMapClick, isLaunched = true, activeSection = 0, scrollProgress = 0, flyToLocation }: LivingGlobeProps) {
+    const mapRef = useRef<any>(null); // Reference to map instance
     const [viewState, setViewState] = useState({
         longitude: 0,
         latitude: 0, // Center the globe vertically
@@ -181,6 +183,11 @@ export default function LivingGlobe({ data, onPointClick, isLaunched = true, act
                 dragRotate={isLaunched}
                 doubleClickZoom={isLaunched}
                 touchZoomRotate={isLaunched}
+                onClick={(e) => {
+                    if (isLaunched && onMapClick) {
+                        onMapClick({ lat: e.lngLat.lat, lng: e.lngLat.lng });
+                    }
+                }}
             >
                 {markers}
                 {isLaunched && <NavigationControl position="bottom-right" />}

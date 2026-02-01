@@ -8,11 +8,14 @@ import { PROPOSAL_DESCRIPTIONS } from '@/lib/descriptions';
 
 export function useProposals() {
     // Fetch all proposals in one bulk call
-    const { data: allProposals, error, isLoading, isError } = useReadContract({
+    const { data: allProposals, error, isLoading, isError, refetch } = useReadContract({
         address: PROPOSAL_MANAGER_ADDRESS,
         abi: GAIA_PROPOSAL_MANAGER_ABI,
         functionName: 'getAllProposals',
         chainId: foundry.id,
+        query: {
+            refetchInterval: 5000, // Refetch every 5 seconds to pick up new proposals
+        }
     });
 
     // Debug logging

@@ -40,7 +40,29 @@ const config = getDefaultConfig({
     },
 });
 
-const queryClient = new QueryClient();
+// Custom QueryClient with error suppression for known harmless errors
+const queryClient = new QueryClient({
+    defaultOptions: {
+        queries: {
+            // Suppress error logging for specific known issues
+            // The decimals() call on non-ERC20 contracts is a wagmi/RainbowKit internal quirk
+            retry: (failureCount, error) => {
+                // Don't retry and don't log for known harmless errors
+                const errorStr = String(error);
+                if (errorStr.includes('0x313ce567') || // decimals()
+                    errorStr.includes('0x95d89b41') || // symbol()
+                    errorStr.includes('execution reverted')) {
+                    // Silently fail - this is expected behavior for non-ERC20 contracts
+                    return false;
+                }
+                return failureCount < 3;
+            },
+        },
+        mutations: {
+            // Don't log mutation errors that are expected
+        }
+    }
+});
 
 export function Web3Provider({ children }: { children: React.ReactNode }) {
     const [mounted, setMounted] = React.useState(false);
