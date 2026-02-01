@@ -19,12 +19,16 @@ export default function LandingOverlay({ onLaunch, onSectionChange }: LandingOve
     const section3Ref = useRef(null);
     const section4Ref = useRef(null);
     const section5Ref = useRef(null);
+    const section6Ref = useRef(null);
+    const section7Ref = useRef(null);
 
     const isInView1 = useInView(section1Ref, { amount: 0.5 });
     const isInView2 = useInView(section2Ref, { amount: 0.5 });
     const isInView3 = useInView(section3Ref, { amount: 0.5 });
     const isInView4 = useInView(section4Ref, { amount: 0.5 });
     const isInView5 = useInView(section5Ref, { amount: 0.5 });
+    const isInView6 = useInView(section6Ref, { amount: 0.5 });
+    const isInView7 = useInView(section7Ref, { amount: 0.5 });
 
     useEffect(() => {
         if (isInView1) { onSectionChange(0); }
@@ -32,7 +36,9 @@ export default function LandingOverlay({ onLaunch, onSectionChange }: LandingOve
         else if (isInView3) { onSectionChange(2); }
         else if (isInView4) { onSectionChange(3); }
         else if (isInView5) { onSectionChange(4); }
-    }, [isInView1, isInView2, isInView3, isInView4, isInView5, onSectionChange]);
+        else if (isInView6) { onSectionChange(5); }
+        else if (isInView7) { onSectionChange(6); }
+    }, [isInView1, isInView2, isInView3, isInView4, isInView5, isInView6, isInView7, onSectionChange]);
 
     return (
         <div className="relative z-10 w-full overflow-x-hidden text-white selection:bg-blue-500/30">
@@ -102,41 +108,47 @@ export default function LandingOverlay({ onLaunch, onSectionChange }: LandingOve
                         </motion.div>
                     </div>
 
-                    {/* Right Column: Data Cards (Bento) */}
-                    <div className="flex flex-col justify-center pointer-events-auto space-y-4">
+                    {/* Right Column: Visual Intelligence Legend */}
+                    <div className="flex flex-col justify-center pointer-events-auto items-end space-y-4">
                         <motion.div
-                            whileHover={{ scale: 1.02 }}
-                            className="bg-black/40 backdrop-blur-xl border border-red-500/20 p-6 rounded-2xl flex items-center gap-4"
+                            initial={{ opacity: 0, x: 20 }}
+                            whileInView={{ opacity: 1, x: 0 }}
+                            transition={{ delay: 0.2 }}
+                            className="bg-black/60 backdrop-blur-xl border border-white/10 p-4 rounded-xl w-64 shadow-[0_0_20px_rgba(0,0,0,0.5)]"
                         >
-                            <Activity className="text-red-500" size={32} />
-                            <div>
-                                <h3 className="font-bold text-red-100">Opaque Funding</h3>
-                                <p className="text-xs text-red-500/50">40% Leakage</p>
+                            <h3 className="text-sm font-bold mb-3 text-blue-300 uppercase tracking-widest">Visual Recon</h3>
+                            <div className="space-y-3">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-3 h-3 rounded-full bg-[#F56565] shadow-[0_0_8px_#F56565]"></div>
+                                    <span className="text-xs text-gray-300">High Severity Vault</span>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <div className="w-3 h-3 rounded-full bg-[#F6E05E] shadow-[0_0_8px_#F6E05E]"></div>
+                                    <span className="text-xs text-gray-300">Medium Severity Vault</span>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <div className="w-3 h-3 rounded-full bg-[#4299E1] shadow-[0_0_8px_#4299E1]"></div>
+                                    <span className="text-xs text-gray-300">Standard Aid Vault</span>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <div className="w-3 h-3 rounded-full bg-[#9F7AEA] shadow-[0_0_8px_#9F7AEA] animate-pulse"></div>
+                                    <span className="text-xs text-gray-200 font-bold">New Crisis / Event</span>
+                                </div>
                             </div>
                         </motion.div>
 
                         <motion.div
-                            whileHover={{ scale: 1.02 }}
-                            className="bg-black/40 backdrop-blur-xl border border-white/10 p-6 rounded-2xl flex items-center gap-4"
+                            initial={{ opacity: 0, x: 20 }}
+                            whileInView={{ opacity: 1, x: 0 }}
+                            transition={{ delay: 0.4 }}
+                            className="text-right pr-2"
                         >
-                            <Activity className="text-yellow-500 animate-spin-slow" size={32} />
-                            <div>
-                                <h3 className="font-bold text-white">Latency</h3>
-                                <p className="text-xs text-gray-500">Weeks to Deploy</p>
-                            </div>
+                            <p className="text-xs text-gray-500 font-mono">
+                                DATA_STREAM: ACTIVE<br />
+                                RESOLUTION: HIGH<br />
+                                MODE: SPATIAL_INTEL
+                            </p>
                         </motion.div>
-
-                        <motion.div
-                            whileHover={{ scale: 1.02 }}
-                            className="bg-black/40 backdrop-blur-xl border border-white/10 p-6 rounded-2xl flex items-center gap-4"
-                        >
-                            <Lock className="text-gray-400" size={32} />
-                            <div>
-                                <h3 className="font-bold text-white">Unverified</h3>
-                                <p className="text-xs text-gray-500">Misinformation Risk</p>
-                            </div>
-                        </motion.div>
-
                     </div>
                 </div>
             </section>
@@ -146,37 +158,45 @@ export default function LandingOverlay({ onLaunch, onSectionChange }: LandingOve
             <section ref={section3Ref} className="min-h-screen w-full flex items-center p-6 relative pointer-events-none">
                 <div className="container mx-auto grid grid-cols-1 md:grid-cols-2 gap-24 align-middle h-full">
 
-                    {/* Left Column: Features */}
-                    <div className="flex flex-col justify-center pointer-events-auto space-y-6">
-                        <motion.div className="flex items-center gap-4 text-right justify-end group cursor-default">
-                            <div className="text-right">
-                                <h3 className="text-xl font-bold text-blue-200">Real-time Vis</h3>
-                                <p className="text-blue-500/50 text-xs uppercase">Mapping Data</p>
-                            </div>
-                            <div className="p-3 bg-blue-500/10 rounded-xl border border-blue-500/20 group-hover:bg-blue-500/30 transition-colors">
-                                <Globe className="text-blue-400" size={24} />
-                            </div>
-                        </motion.div>
+                    {/* Left Column: AI Skills Map */}
+                    <div className="flex flex-col justify-center pointer-events-auto space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <motion.div
+                                whileHover={{ scale: 1.05 }}
+                                className="p-4 bg-red-500/10 rounded-xl border border-red-500/20 backdrop-blur-md"
+                            >
+                                <ShieldCheck className="text-red-400 mb-2" size={20} />
+                                <h3 className="text-sm font-bold text-white">Crisis Response</h3>
+                                <p className="text-[10px] text-gray-400">Verify & Validate Events</p>
+                            </motion.div>
 
-                        <motion.div className="flex items-center gap-4 text-right justify-end group cursor-default">
-                            <div className="text-right">
-                                <h3 className="text-xl font-bold text-purple-200">Intent Engine</h3>
-                                <p className="text-purple-500/50 text-xs uppercase">AI Processing</p>
-                            </div>
-                            <div className="p-3 bg-purple-500/10 rounded-xl border border-purple-500/20 group-hover:bg-purple-500/30 transition-colors">
-                                <Zap className="text-purple-400" size={24} />
-                            </div>
-                        </motion.div>
+                            <motion.div
+                                whileHover={{ scale: 1.05 }}
+                                className="p-4 bg-blue-500/10 rounded-xl border border-blue-500/20 backdrop-blur-md"
+                            >
+                                <Zap className="text-blue-400 mb-2" size={20} />
+                                <h3 className="text-sm font-bold text-white">Donation Advisor</h3>
+                                <p className="text-[10px] text-gray-400">Path & Gas Optimization</p>
+                            </motion.div>
 
-                        <motion.div className="flex items-center gap-4 text-right justify-end group cursor-default">
-                            <div className="text-right">
-                                <h3 className="text-xl font-bold text-green-200">Verification</h3>
-                                <p className="text-green-500/50 text-xs uppercase">On-chain Trust</p>
-                            </div>
-                            <div className="p-3 bg-green-500/10 rounded-xl border border-green-500/20 group-hover:bg-green-500/30 transition-colors">
-                                <ShieldCheck className="text-green-400" size={24} />
-                            </div>
-                        </motion.div>
+                            <motion.div
+                                whileHover={{ scale: 1.05 }}
+                                className="p-4 bg-purple-500/10 rounded-xl border border-purple-500/20 backdrop-blur-md"
+                            >
+                                <Database className="text-purple-400 mb-2" size={20} />
+                                <h3 className="text-sm font-bold text-white">Pool Manager</h3>
+                                <p className="text-[10px] text-gray-400">Vault & Yield Control</p>
+                            </motion.div>
+
+                            <motion.div
+                                whileHover={{ scale: 1.05 }}
+                                className="p-4 bg-green-500/10 rounded-xl border border-green-500/20 backdrop-blur-md"
+                            >
+                                <Activity className="text-green-400 mb-2" size={20} />
+                                <h3 className="text-sm font-bold text-white">Donation Tracker</h3>
+                                <p className="text-[10px] text-gray-400">Impact & Transparency</p>
+                            </motion.div>
+                        </div>
                     </div>
 
                     {/* Right Column: Title */}
@@ -188,18 +208,127 @@ export default function LandingOverlay({ onLaunch, onSectionChange }: LandingOve
                             className="mb-12"
                         >
                             <div className="inline-block px-4 py-1.5 rounded-full border border-blue-500/30 bg-blue-500/10 text-blue-400 text-xs font-bold uppercase tracking-widest mb-6 backdrop-blur-md">
-                                Protocol Activated
+                                SpoonOS Activated
                             </div>
                             <h2 className="text-4xl md:text-6xl font-bold mb-4 leading-tight">Spatial Intelligence. <br /><span className="text-blue-400">Powered by Agents.</span></h2>
+                            <p className="text-gray-400 text-lg max-w-md">
+                                Multi-skill AI agents manage the complexity of global aid, from on-chain verification to yield optimization.
+                            </p>
                         </motion.div>
                     </div>
-
                 </div>
             </section>
 
 
-            {/* --- Section 4: Tech Stack --- */}
-            <section ref={section4Ref} className="min-h-screen w-full flex flex-col items-center pt-20 p-6 relative pointer-events-none">
+            {/* --- Section 4: Architecture (L1/L2) --- */}
+            <section ref={section4Ref} className="min-h-screen w-full flex items-center p-6 relative pointer-events-none">
+                <div className="container mx-auto grid grid-cols-1 md:grid-cols-2 gap-24 align-middle h-full">
+
+                    {/* Left Column: Title */}
+                    <div className="flex flex-col justify-center pointer-events-auto">
+                        <motion.div
+                            initial={{ opacity: 0, x: -50 }}
+                            whileInView={{ opacity: 1, x: 0 }}
+                            transition={{ duration: 0.8 }}
+                            className="mb-12"
+                        >
+                            <div className="inline-block px-4 py-1.5 rounded-full border border-green-500/30 bg-green-500/10 text-green-400 text-xs font-bold uppercase tracking-widest mb-6 backdrop-blur-md">
+                                Protocol Architecture
+                            </div>
+                            <h2 className="text-4xl md:text-6xl font-bold mb-4 leading-tight">Two-Layer Impact.<br /><span className="text-green-400">Trust at Scale.</span></h2>
+                            <p className="text-gray-400 text-lg max-w-md">
+                                Balancing permissionless community proposals with institutional-grade verification.
+                            </p>
+                        </motion.div>
+                    </div>
+
+                    {/* Right Column: Layer Diagram */}
+                    <div className="flex flex-col justify-center pointer-events-auto items-center space-y-6">
+                        <motion.div
+                            whileHover={{ scale: 1.05 }}
+                            className="w-full max-w-sm p-6 bg-green-500/10 border border-green-500/30 rounded-2xl backdrop-blur-xl relative overflow-hidden group"
+                        >
+                            <div className="absolute top-0 right-0 p-2 opacity-20 group-hover:opacity-100 transition-opacity">
+                                <ShieldCheck className="text-green-400" size={16} />
+                            </div>
+                            <h3 className="text-xl font-bold text-white mb-2">Layer 1: Institution</h3>
+                            <p className="text-xs text-green-200/60 leading-relaxed">
+                                Whitelisted NGOs and established relief organizations. Direct, immediate funding for verified global crises.
+                            </p>
+                            <div className="mt-4 flex gap-2">
+                                <span className="text-[10px] px-2 py-0.5 rounded bg-green-500/20 text-green-400 border border-green-500/30">Verified Org</span>
+                                <span className="text-[10px] px-2 py-0.5 rounded bg-green-500/20 text-green-400 border border-green-500/30">High Trust</span>
+                            </div>
+                        </motion.div>
+
+                        <div className="h-12 w-px bg-gradient-to-b from-green-500/50 to-blue-500/50 dash-line"></div>
+
+                        <motion.div
+                            whileHover={{ scale: 1.05 }}
+                            className="w-full max-w-sm p-6 bg-blue-500/10 border border-blue-500/30 rounded-2xl backdrop-blur-xl relative overflow-hidden group"
+                        >
+                            <div className="absolute top-0 right-0 p-2 opacity-20 group-hover:opacity-100 transition-opacity">
+                                <Globe className="text-blue-400" size={16} />
+                            </div>
+                            <h3 className="text-xl font-bold text-white mb-2">Layer 2: Community</h3>
+                            <p className="text-xs text-blue-200/60 leading-relaxed">
+                                Permissionless proposals for any crisis. Funds move to L1 institutions only upon activation and verification.
+                            </p>
+                            <div className="mt-4 flex gap-2">
+                                <span className="text-[10px] px-2 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30">Permissionless</span>
+                                <span className="text-[10px] px-2 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30">L2 Proposal</span>
+                            </div>
+                        </motion.div>
+                    </div>
+                </div>
+            </section>
+
+
+            {/* --- Section 5: No-Loss Yield --- */}
+            <section ref={section5Ref} className="min-h-screen w-full flex items-center p-6 relative pointer-events-none">
+                <div className="container mx-auto grid grid-cols-1 md:grid-cols-2 gap-24 align-middle h-full">
+
+                    {/* Left Column: Yield Visual */}
+                    <div className="flex flex-col justify-center pointer-events-auto items-center">
+                        <div className="relative w-64 h-64 flex items-center justify-center">
+                            <motion.div
+                                animate={{ rotate: 360 }}
+                                transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+                                className="absolute inset-0 border-2 border-dashed border-cyan-500/30 rounded-full"
+                            />
+                            <motion.div
+                                className="bg-black/80 backdrop-blur-2xl border border-cyan-500/50 p-8 rounded-full flex flex-col items-center justify-center shadow-[0_0_50px_rgba(6,182,212,0.2)]"
+                            >
+                                <Zap className="text-cyan-400 mb-2" size={40} />
+                                <span className="text-2xl font-black text-white">YIELD</span>
+                                <span className="text-[10px] text-cyan-500 uppercase tracking-tighter">Perpetual Aid</span>
+                            </motion.div>
+                        </div>
+                    </div>
+
+                    {/* Right Column: Title */}
+                    <div className="flex flex-col justify-center pointer-events-auto">
+                        <motion.div
+                            initial={{ opacity: 0, x: 50 }}
+                            whileInView={{ opacity: 1, x: 0 }}
+                            transition={{ duration: 0.8 }}
+                            className="mb-12"
+                        >
+                            <div className="inline-block px-4 py-1.5 rounded-full border border-cyan-500/30 bg-cyan-500/10 text-cyan-400 text-xs font-bold uppercase tracking-widest mb-6 backdrop-blur-md">
+                                Economic Model
+                            </div>
+                            <h2 className="text-4xl md:text-6xl font-bold mb-4 leading-tight">No-Loss Donations.<br /><span className="text-cyan-400">Impact Forever.</span></h2>
+                            <p className="text-gray-400 text-lg max-w-md">
+                                Keep your principal. Donate the yield. Powered by Euler and Pendle modules to create sustainable aid.
+                            </p>
+                        </motion.div>
+                    </div>
+                </div>
+            </section>
+
+
+            {/* --- Section 6: Tech Stack --- */}
+            <section ref={section6Ref} className="min-h-screen w-full flex flex-col items-center pt-20 p-6 relative pointer-events-none">
                 <div className="pointer-events-auto max-w-4xl w-full">
                     <motion.div
                         initial={{ opacity: 0, y: 30 }}
@@ -252,8 +381,8 @@ export default function LandingOverlay({ onLaunch, onSectionChange }: LandingOve
             </section>
 
 
-            {/* --- Section 5: Call to Action --- */}
-            <section ref={section5Ref} className="min-h-screen w-full flex items-center p-6 relative pointer-events-none">
+            {/* --- Section 7: Call to Action --- */}
+            <section ref={section7Ref} className="min-h-screen w-full flex items-center p-6 relative pointer-events-none">
                 <div className="container mx-auto text-center pointer-events-auto">
                     <motion.div
                         initial={{ opacity: 0, y: 30 }}

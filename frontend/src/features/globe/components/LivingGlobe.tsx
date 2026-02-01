@@ -166,11 +166,33 @@ export default function LivingGlobe({ data, onPointClick, onMapClick, isLaunched
             `}</style>
 
             {/* Visual Overlays for Scrollytelling */}
-            {!isLaunched && activeSection === 1 && (
-                <div className="absolute inset-0 z-10 pointer-events-none mix-blend-overlay bg-red-900/40 backdrop-contrast-125 transition-all duration-1000"></div>
-            )}
-            {!isLaunched && activeSection === 1 && (
-                <div className="absolute inset-0 z-10 pointer-events-none bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20"></div>
+            {!isLaunched && (
+                <>
+                    {/* Section 1: Problem (Red) */}
+                    {activeSection === 1 && (
+                        <div className="absolute inset-0 z-10 pointer-events-none mix-blend-overlay bg-red-900/40 backdrop-contrast-125 transition-all duration-1000"></div>
+                    )}
+
+                    {/* Section 2: AI Agent (Purple) */}
+                    {activeSection === 2 && (
+                        <div className="absolute inset-0 z-10 pointer-events-none mix-blend-overlay bg-purple-900/40 backdrop-contrast-125 transition-all duration-1000"></div>
+                    )}
+
+                    {/* Section 3: Architecture (Green) */}
+                    {activeSection === 3 && (
+                        <div className="absolute inset-0 z-10 pointer-events-none mix-blend-overlay bg-green-900/30 backdrop-contrast-110 transition-all duration-1000"></div>
+                    )}
+
+                    {/* Section 4: Economic Model (Cyan) */}
+                    {activeSection === 4 && (
+                        <div className="absolute inset-0 z-10 pointer-events-none mix-blend-overlay bg-cyan-900/40 backdrop-contrast-120 transition-all duration-1000"></div>
+                    )}
+
+                    {/* Global Noise Grain Overlay */}
+                    {activeSection > 0 && (
+                        <div className="absolute inset-0 z-10 pointer-events-none bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20"></div>
+                    )}
+                </>
             )}
 
 
