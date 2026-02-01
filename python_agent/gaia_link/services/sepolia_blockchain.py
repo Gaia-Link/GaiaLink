@@ -21,14 +21,14 @@ except ImportError:
 
 
 # Sepolia 測試網配置
-SEPOLIA_CHAIN_ID = 11155111
-SEPOLIA_EXPLORER_URL = "https://sepolia.etherscan.io"
+SEPOLIA_CHAIN_ID = int(os.getenv("CHAIN_ID", "11155111"))
+SEPOLIA_EXPLORER_URL = os.getenv("EXPLORER_URL", "https://sepolia.etherscan.io")
 
 # 代幣合約地址 (Sepolia 測試網)
 SEPOLIA_TOKEN_CONTRACTS = {
     "USDC": os.getenv("USDC_TOKEN_ADDRESS", "0x68b1d87f95878fe05b998f19b66f4baba5de1aed"),  # MockUSDC
-    "USDT": "0x7169D38820dfd117C3FA1f22a697dBA58d90BA06",
-    "DAI": "0x3e622317f8C93f7328350cF0B56d9eD4C620C5d6",
+    "USDT": os.getenv("USDT_TOKEN_ADDRESS", "0x7169D38820dfd117C3FA1f22a697dBA58d90BA06"),
+    "DAI": os.getenv("DAI_TOKEN_ADDRESS", "0x3e622317f8C93f7328350cF0B56d9eD4C620C5d6"),
 }
 
 # Gaia Protocol Contracts

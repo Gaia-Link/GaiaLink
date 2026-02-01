@@ -71,6 +71,8 @@ GEO_KEYWORD_MAP = {
     "sudan": {"lat_range": (8.0, 23.0), "long_range": (21.0, 39.0)},
     "ethiopia": {"lat_range": (3.0, 15.0), "long_range": (33.0, 48.0)},
     "somalia": {"lat_range": (-2.0, 12.0), "long_range": (41.0, 51.0)},
+    "morocco": {"lat_range": (27.0, 36.0), "long_range": (-13.0, -1.0)},
+    "libya": {"lat_range": (19.0, 33.0), "long_range": (9.0, 25.0)},
     # 美洲
     "haiti": {"lat_range": (18.0, 20.0), "long_range": (-75.0, -71.0)},
     "mexico": {"lat_range": (14.0, 33.0), "long_range": (-118.0, -86.0)},
