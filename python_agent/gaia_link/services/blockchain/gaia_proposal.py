@@ -394,7 +394,12 @@ class GaiaProposalService(ProposalService):
         Returns a list of ContributionInfo with non-zero balances.
         """
         try:
-            address = self._provider.web3.to_checksum_address(user_address)
+            # Ensure address is checksummed
+            if not self._provider.web3.is_checksum_address(user_address):
+                 address = self._provider.web3.to_checksum_address(user_address)
+            else:
+                 address = user_address
+                 
             # Call calling getUserPortfolio(address) -> PortfolioItem[]
             portfolio_items = self._contract.functions.getUserPortfolio(address).call()
             

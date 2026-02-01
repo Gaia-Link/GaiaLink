@@ -18,6 +18,7 @@ from gaia_link.tools.activate_proposal import ActivateProposalTool
 from gaia_link.tools.withdraw_contribution import WithdrawContributionTool
 from gaia_link.tools.query_proposals import QueryProposalsTool
 from gaia_link.tools.list_institutions import ListInstitutionsTool
+from gaia_link.tools.track_donation import TrackDonationTool
 
 # V2 X402 Payment Tools
 from gaia_link.tools.x402_payment import (
@@ -40,6 +41,7 @@ __all__ = [
     "WithdrawContributionTool",
     "QueryProposalsTool",
     "ListInstitutionsTool",
+    "TrackDonationTool",
     # V2 X402 Payment Tools
     "X402PaymentTool",
     "X402VerifyPaymentTool",

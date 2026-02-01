@@ -16,12 +16,14 @@
 
 import sys
 import json
+import asyncio
 import re
 from datetime import datetime, timezone
 from typing import Optional
 
 try:
     from gaia_link.config import get_blockchain_service
+    from gaia_link.services.blockchain.gaia_proposal import get_gaia_proposal_service
     HAS_SERVICE = True
 except ImportError:
     HAS_SERVICE = False
@@ -60,13 +62,6 @@ def is_valid_tx_hash(tx_hash: str) -> bool:
 def get_explorer_url(tx_hash: str, network: str = "sepolia") -> str:
     """
     獲取區塊鏈瀏覽器 URL
-
-    Args:
-        tx_hash: 交易哈希
-        network: 網絡名稱
-
-    Returns:
-        區塊鏈瀏覽器 URL
     """
     if network == "mainnet":
         return f"https://etherscan.io/tx/{tx_hash}"
@@ -76,15 +71,9 @@ def get_explorer_url(tx_hash: str, network: str = "sepolia") -> str:
         return f"https://etherscan.io/tx/{tx_hash}"
 
 
-def track_transaction(tx_hash: str) -> dict:
+async def track_transaction(tx_hash: str) -> dict:
     """
-    追蹤交易狀態
-
-    Args:
-        tx_hash: 交易哈希
-
-    Returns:
-        包含交易狀態的字典
+    追蹤交易狀態 (Async)
     """
     # 驗證交易哈希格式
     if not is_valid_tx_hash(tx_hash):
@@ -98,8 +87,6 @@ def track_transaction(tx_hash: str) -> dict:
         try:
             service = get_blockchain_service()
             # 嘗試從服務獲取交易信息
-            # 注意：MockBlockchainService 可能沒有 get_transaction 方法
-            # 在這種情況下使用 fallback
             if hasattr(service, 'get_transaction'):
                 tx_info = service.get_transaction(tx_hash)
                 if tx_info:
@@ -132,16 +119,9 @@ def track_transaction(tx_hash: str) -> dict:
     }
 
 
-def query_donation_history(wallet_address: str, time_range: Optional[str] = None) -> dict:
+async def query_donation_history(wallet_address: str, time_range: Optional[str] = None) -> dict:
     """
-    查詢捐款歷史
-
-    Args:
-        wallet_address: 錢包地址
-        time_range: 時間範圍 (7d, 30d, 90d, 1y, all)
-
-    Returns:
-        包含捐款歷史和摘要的字典
+    查詢捐款歷史 (Async, connecting to Real Blockchain)
     """
     # 驗證錢包地址格式
     if not is_valid_address(wallet_address):
@@ -156,67 +136,73 @@ def query_donation_history(wallet_address: str, time_range: Optional[str] = None
     # 如果有服務層，使用真實查詢
     if HAS_SERVICE:
         try:
-            service = get_blockchain_service()
-            if hasattr(service, 'get_donation_history'):
-                history = service.get_donation_history(wallet_address, days)
-                if history:
-                    return {
-                        "success": True,
-                        "donations": history.get("donations", []),
-                        "summary": history.get("summary", {})
-                    }
-        except Exception:
-            pass  # 使用 fallback
+            print(f"Connecting to GaiaProposalService for {wallet_address}...", file=sys.stderr)
+            service = get_gaia_proposal_service()
+            
+            # 1. Get User Portfolio (All contributions)
+            contributions = await service.get_user_portfolio(wallet_address)
+            
+            donations_list = []
+            
+            # 2. Enrich with Proposal Details
+            for contribution in contributions:
+                try:
+                    proposal = await service.get_proposal(contribution.proposal_id)
+                    title = proposal.title if proposal else f"Proposal #{contribution.proposal_id}"
+                    
+                    donations_list.append({
+                        "tx_hash": contribution.contribution_id if "0x" in contribution.contribution_id else None,
+                        "timestamp": contribution.contributed_at.isoformat(),
+                        "amount": contribution.amount,
+                        "token": "USDC", # Currently only USDC supported
+                        "recipient": f"Proposal #{contribution.proposal_id}",
+                        "recipient_name": title,
+                        "status": "confirmed",
+                        "proposal_id": contribution.proposal_id,
+                        "is_no_loss": contribution.is_no_loss
+                    })
+                except Exception as e:
+                    print(f"Failed to fetch proposal {contribution.proposal_id}: {e}", file=sys.stderr)
+                    # Add without title if fail
+                    donations_list.append({
+                        "amount": contribution.amount,
+                        "proposal_id": contribution.proposal_id,
+                        "recipient_name": f"Unknown Proposal #{contribution.proposal_id}",
+                        "status": "confirmed"
+                    })
 
-    # Mock 回應 (當服務不可用時)
-    mock_donations = [
-        {
-            "tx_hash": "0xabc123def456789012345678901234567890123456789012345678901234abcd",
-            "timestamp": "2024-01-15T10:30:00Z",
-            "amount": 100.0,
-            "token": "USDC",
-            "recipient": "0x742d35Cc6634C0532925a3b844Bc9e7595f8e888",
-            "recipient_name": "Red Cross Turkey Relief",
-            "status": "confirmed"
-        },
-        {
-            "tx_hash": "0xdef456abc789012345678901234567890123456789012345678901234567efgh",
-            "timestamp": "2024-01-10T14:20:00Z",
-            "amount": 50.0,
-            "token": "USDC",
-            "recipient": "0x8888888888888888888888888888888888888888",
-            "recipient_name": "UNICEF Emergency Fund",
-            "status": "confirmed"
-        },
-        {
-            "tx_hash": "0x123456789012345678901234567890123456789012345678901234567890ijkl",
-            "timestamp": "2024-01-05T09:15:00Z",
-            "amount": 200.0,
-            "token": "USDC",
-            "recipient": "0x9999999999999999999999999999999999999999",
-            "recipient_name": "Save the Children",
-            "status": "confirmed"
-        }
-    ]
+            # 計算摘要
+            total_amount = sum(d["amount"] for d in donations_list)
+            
+            return {
+                "success": True,
+                "donations": donations_list,
+                "summary": {
+                    "total_donations": len(donations_list),
+                    "total_amount_usd": total_amount,
+                    "average_amount_usd": round(total_amount / len(donations_list), 2) if donations_list else 0,
+                    "time_range": time_range or "all"
+                }
+            }
+        except Exception as e:
+             print(f"Service Error: {e}", file=sys.stderr)
+             # Fallthrough to empty/mock if real service fails
+             pass
 
-    # 計算摘要
-    total_amount = sum(d["amount"] for d in mock_donations)
+    # Mock 回應 (當服務不可用或出錯時)
     return {
         "success": True,
-        "donations": mock_donations,
+        "donations": [],
         "summary": {
-            "total_donations": len(mock_donations),
-            "total_amount_usd": total_amount,
-            "average_amount_usd": round(total_amount / len(mock_donations), 2) if mock_donations else 0,
-            "first_donation": mock_donations[-1]["timestamp"] if mock_donations else None,
-            "last_donation": mock_donations[0]["timestamp"] if mock_donations else None,
-            "time_range": time_range or "all"
+            "total_donations": 0,
+            "total_amount_usd": 0.0,
+            "error": "Unable to fetch real data"
         }
     }
 
 
-def main():
-    """主入口點"""
+async def async_main():
+    """Async Main Entry Point"""
     # 讀取 stdin 輸入
     input_data = sys.stdin.read().strip()
     if not input_data:
@@ -237,13 +223,10 @@ def main():
 
     # 根據參數決定操作
     if tx_hash:
-        # 追蹤單筆交易
-        result = track_transaction(tx_hash)
+        result = await track_transaction(tx_hash)
     elif wallet_address:
-        # 查詢捐款歷史
-        result = query_donation_history(wallet_address, time_range)
+        result = await query_donation_history(wallet_address, time_range)
     else:
-        # 沒有提供有效參數
         result = {
             "success": False,
             "error": "請提供 tx_hash (追蹤交易) 或 wallet_address (查詢歷史)"
@@ -251,11 +234,12 @@ def main():
 
     # 輸出結果
     print(json.dumps(result, ensure_ascii=False, indent=2))
-
-    # 根據結果設置退出碼
+    
     if not result.get("success", False):
         sys.exit(1)
 
+def main():
+    asyncio.run(async_main())
 
 if __name__ == "__main__":
     main()

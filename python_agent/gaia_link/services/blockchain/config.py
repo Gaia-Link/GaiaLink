@@ -93,6 +93,23 @@ GAIA_PROPOSAL_MANAGER_ABI = [
         "type": "function",
     },
     {
+        "inputs": [{"name": "_user", "type": "address"}],
+        "name": "getUserPortfolio",
+        "outputs": [
+            {
+                "components": [
+                    {"name": "proposalId", "type": "uint256"},
+                    {"name": "directAmount", "type": "uint256"},
+                    {"name": "noLossAmount", "type": "uint256"},
+                ],
+                "name": "",
+                "type": "tuple[]",
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function",
+    },
+    {
         "inputs": [],
         "name": "nextProposalId",
         "outputs": [{"name": "", "type": "uint256"}],

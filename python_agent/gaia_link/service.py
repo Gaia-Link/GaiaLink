@@ -328,6 +328,11 @@ class GaiaLinkService:
         # Pattern 3: Structural indicators (ETH address or Gas)
         has_structural = bool(re.search(r'0x[a-fA-F0-9]{40}|[Gg]as', text))
         
+        # Exclude history/listing context - CRITICAL FIX
+        # If the text explicitly mentions "records", "history", "list", "past", "total", ignore donation keywords
+        if re.search(r'history|record|list|past|total|amount donated|紀錄|記錄|清單|查詢|總額|總計|捐款過', text, re.IGNORECASE):
+             return False
+
         # Match if it has (intent AND amount) OR structural indicators
         return (has_donation_intent and has_token_amount) or has_structural
 

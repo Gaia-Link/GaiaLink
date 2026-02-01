@@ -129,7 +129,8 @@ class ExecuteDonationTool(BaseTool):
         "Prepare a humanitarian donation transaction payload for user signature. "
         "Supports USDC, USDT, ETH, DAI tokens. "
         "Can route to DIRECT vaults or YIELD strategies (Euler/Pendle). "
-        "Returns a transaction object that the frontend can propose to the user."
+        "Returns a transaction object that the frontend can propose to the user. "
+        "DO NOT use this tool for listing donation history or checking status; use 'track_donation' instead."
     )
     parameters: dict = {
         "type": "object",

@@ -36,6 +36,7 @@ from gaia_link.tools import (
     WithdrawContributionTool,
     QueryProposalsTool,
     ListInstitutionsTool,
+    TrackDonationTool,
 )
 
 # MCP Server 配置 (用於連接外部 MCP 服務)
@@ -350,6 +351,7 @@ class GaiaLinkAgentV2(SpoonReactAI):
             WithdrawContributionTool(),
             QueryProposalsTool(),
             ListInstitutionsTool(),
+            TrackDonationTool(),
         ]
         kwargs['tools'] = native_tools
 

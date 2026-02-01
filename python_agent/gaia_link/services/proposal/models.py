@@ -75,11 +75,13 @@ class ContributionInfo:
 
     追蹤每筆捐款的詳細資訊，用於退款和審計。
     """
-    contributor: str
-    amount: float
-    timestamp: datetime
+    contribution_id: str
     proposal_id: str
-    tx_hash: Optional[str] = None   # 交易哈希
+    contributor_address: str
+    amount: float
+    contributed_at: datetime
+    is_no_loss: bool = False
+    tx_hash: Optional[str] = None
 
 
 @dataclass
