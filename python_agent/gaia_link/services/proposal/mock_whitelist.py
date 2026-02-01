@@ -14,7 +14,7 @@ from .models import InstitutionInfo
 # 預設白名單機構
 DEFAULT_INSTITUTIONS = [
     InstitutionInfo(
-        address="0xRedCross001",
+        address="0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",  # Anvil Account 0 (Owner/Red Cross Admin)
         name="International Red Cross",
         region="Global",
         is_active=True,
@@ -24,7 +24,7 @@ DEFAULT_INSTITUTIONS = [
         description="International Committee of the Red Cross",
     ),
     InstitutionInfo(
-        address="0xUNICEF001",
+        address="0x70997970C51812dc3A010C7d01b50e0d17dc79C8",  # Anvil Account 1 (UNICEF Admin)
         name="UNICEF",
         region="Global",
         is_active=True,
@@ -34,7 +34,7 @@ DEFAULT_INSTITUTIONS = [
         description="United Nations Children's Fund",
     ),
     InstitutionInfo(
-        address="0xMSF001",
+        address="0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",  # Anvil Account 2 (MSF)
         name="Doctors Without Borders (MSF)",
         region="Global",
         is_active=True,
@@ -44,7 +44,7 @@ DEFAULT_INSTITUTIONS = [
         description="Medecins Sans Frontieres",
     ),
     InstitutionInfo(
-        address="0xTaiwan001",
+        address="0x90F79bf6EB2c4f870365E785982E1f101E93b906",  # Anvil Account 3 (Taiwan Red Cross)
         name="Taiwan Red Cross",
         region="Asia",
         is_active=True,
@@ -54,7 +54,7 @@ DEFAULT_INSTITUTIONS = [
         description="Taiwan Red Cross Society",
     ),
     InstitutionInfo(
-        address="0xWFP001",
+        address="0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65",  # Anvil Account 4 (WFP)
         name="World Food Programme",
         region="Global",
         is_active=True,

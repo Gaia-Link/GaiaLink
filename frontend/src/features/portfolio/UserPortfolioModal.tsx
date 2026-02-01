@@ -9,6 +9,7 @@ import { useQuery } from '@tanstack/react-query';
 import { PROPOSAL_MANAGER_ADDRESS } from '@/lib/constants';
 import { GAIA_PROPOSAL_MANAGER_ABI, GAIA_NO_LOSS_VAULT_ABI, GAIA_STRATEGY_ABI } from '@/lib/abis';
 import { useProposals } from '@/hooks/useProposals';
+import { foundry } from 'wagmi/chains';
 
 interface UserPortfolioModalProps {
     isOpen: boolean;
@@ -20,7 +21,7 @@ const GLOBAL_BLOCK_TIME_CACHE: Record<number, number> = {};
 
 export default function UserPortfolioModal({ isOpen, onClose }: UserPortfolioModalProps) {
     const { address } = useAccount();
-    const publicClient = usePublicClient();
+    const publicClient = usePublicClient({ chainId: foundry.id });
     const [activeTab, setActiveTab] = useState<'portfolio' | 'history'>('portfolio');
     const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -102,6 +103,7 @@ export default function UserPortfolioModal({ isOpen, onClose }: UserPortfolioMod
         abi: GAIA_PROPOSAL_MANAGER_ABI,
         functionName: 'getUserPortfolio',
         args: [address!],
+        chainId: foundry.id,
         query: {
             enabled: !!address && isOpen
         }

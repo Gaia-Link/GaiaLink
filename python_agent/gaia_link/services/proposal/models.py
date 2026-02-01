@@ -48,6 +48,7 @@ class ProposalInfo:
     activation_deadline: Optional[datetime] = None  # 機構確認截止 (funded_at + 3 days)
     contributors_count: int = 0
     region: Optional[str] = None
+    location: Optional[dict] = None  # {lat: float, lng: float}
 
     @property
     def progress_percent(self) -> float:

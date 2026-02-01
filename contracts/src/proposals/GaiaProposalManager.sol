@@ -255,4 +255,15 @@ contract GaiaProposalManager is Ownable {
 
         emit CharityVaultDeployed(_charityId, vault, _isNoLoss);
     }
+
+    /**
+     * @dev Prevent direct ETH transfers without function calls.
+     */
+    receive() external payable {
+        revert("Direct ETH transfers not allowed. Use depositToProposal.");
+    }
+
+    fallback() external payable {
+        revert("Function not found. Use depositToProposal for donations.");
+    }
 }

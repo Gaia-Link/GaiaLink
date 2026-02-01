@@ -89,34 +89,44 @@ class GaiaProposalService(ProposalService):
 
         return ProposalInfo(
             proposal_id=str(proposal_id),
-            institution_id=str(charity_id),
+            address=self._contract.address, # Manager address as proxy
+            creator=proposer,
+            institution=str(charity_id), # Using ID as identifier
+            institution_name=f"Charity #{charity_id}", # Placeholder, ideal would be to fetch from registry
             title=title,
             description=metadata,  # IPFS CID stored in metadata
             target_amount=0,  # Contract doesn't track target
-            current_amount=total_amount,
+            total_raised=total_amount,
             status=status,
             deadline=expiry_dt,
-            created_at=datetime.now(),  # Contract doesn't store creation time
-            # Extended fields for frontend
+            # Optional fields
             location={"lat": lat_float, "lng": lng_float},
-            category=category_name,
-            proposer=proposer,
-            direct_vault=direct_vault if direct_vault != "0x" + "0" * 40 else None,
-            no_loss_vault=no_loss_vault if no_loss_vault != "0x" + "0" * 40 else None,
+            # stored dynamically as extra attributes if model allows, but ProposalInfo has fixed fields
+            # We map category/vaults if possible or ignore if not in model
         )
 
     async def create_proposal(
         self,
-        institution_id: str,
         title: str,
         description: str,
         target_amount: float,
-        duration_days: int,
-        asset_address: Optional[str] = None,
-        lat: Optional[float] = None,
-        lng: Optional[float] = None,
-        category: int = 1,
+        deadline_days: int,
+        institution_address: str,
+        creator_address: str,
+        region: Optional[str] = None,
+        # Specialized Gaia parameters as optional kwargs
+        **kwargs
     ) -> ProposalInfo:
+        """
+        Create a new proposal on-chain.
+        
+        Maps standard ProposalService parameters to Gaia-specific contract call.
+        """
+        # Get Gaia-specific params from kwargs or defaults
+        asset_address = kwargs.get("asset_address") or self._config.addresses.usdc_token
+        lat = kwargs.get("lat")
+        lng = kwargs.get("lng")
+        category = kwargs.get("category", 1) # default to 1 (earthquake)
         """Create a new proposal on-chain."""
         # Get asset address (default to configured USDC)
         asset = asset_address or self._config.addresses.usdc_token
@@ -128,12 +138,12 @@ class GaiaProposalService(ProposalService):
         lng_scaled = int((lng or 0) * 10000)
 
         # Duration in seconds
-        duration_seconds = duration_days * 24 * 60 * 60
+        duration_seconds = deadline_days * 24 * 60 * 60
 
         # Build transaction
         tx_func = self._contract.functions.createProposal(
-            int(institution_id),  # charityId
-            self._provider.web3.to_checksum_address(asset),  # asset
+            int(institution_address),  # Gaia uses numeric ID as "address" in this context or it's a mapping issue
+            self._provider.web3.to_checksum_address(asset_address),  # asset
             title,  # title
             description,  # metadata (IPFS CID)
             lat_scaled,  # lat
@@ -176,7 +186,12 @@ class GaiaProposalService(ProposalService):
     async def list_proposals(
         self,
         status: Optional[ProposalStatus] = None,
-        institution_id: Optional[str] = None,
+        institution: Optional[str] = None,
+        region: Optional[str] = None,
+        creator: Optional[str] = None,
+        title_query: Optional[str] = None,
+        limit: int = 20,
+        offset: int = 0,
     ) -> List[ProposalInfo]:
         """List all proposals, optionally filtered."""
         proposals = []
@@ -197,7 +212,10 @@ class GaiaProposalService(ProposalService):
                     # Apply filters
                     if status and proposal.status != status:
                         continue
-                    if institution_id and proposal.institution_id != institution_id:
+                    if institution and proposal.institution != institution:
+                        continue
+                    
+                    if title_query and title_query.lower() not in proposal.title.lower():
                         continue
 
                     proposals.append(proposal)
@@ -213,11 +231,12 @@ class GaiaProposalService(ProposalService):
     async def contribute(
         self,
         proposal_id: str,
-        contributor_address: str,
         amount: float,
-        is_no_loss: bool = False,
+        contributor_address: str,
+        **kwargs
     ) -> ContributionInfo:
         """Contribute to a proposal (requires ERC20 approval first)."""
+        is_no_loss = kwargs.get("is_no_loss", False)
         pid = int(proposal_id)
 
         # Convert amount to wei (assuming 18 decimals)
@@ -286,23 +305,58 @@ class GaiaProposalService(ProposalService):
         )
         return True
 
-    async def activate_proposal(self, proposal_id: str) -> bool:
-        """Accept/activate a proposal (charity member only)."""
-        pid = int(proposal_id)
+    async def activate(
+        self,
+        proposal_id: str,
+        institution_address: str,
+    ) -> ProposalInfo:
+        """Activate proposal (alias for activate_proposal)."""
+        success = await self.activate_proposal(proposal_id)
+        if not success:
+            raise Exception("Failed to activate proposal")
+        return await self.get_proposal(proposal_id)
 
-        tx_func = self._contract.functions.acceptProposal(pid)
-        result = self._provider.send_transaction(tx_func)
+    async def reject(
+        self,
+        proposal_id: str,
+        institution_address: str,
+    ) -> ProposalInfo:
+        """Reject proposal (Not implemented on contract)."""
+        raise NotImplementedError("Reject not supported on blockchain yet")
 
-        if result["status"] != "success":
-            logger.error("[ERROR] Activation failed: %s", result)
-            return False
+    async def check_and_update_status(self, proposal_id: str) -> ProposalInfo:
+        """Check status (On-chain status is dynamic)."""
+        return await self.get_proposal(proposal_id)
 
-        logger.info(
-            "[OK] Proposal %s activated, tx=%s",
-            proposal_id,
-            result["tx_hash"],
+    async def withdraw(
+        self,
+        proposal_id: str,
+        contributor_address: str,
+    ) -> ContributionInfo:
+        """Withdraw contribution (alias for withdraw_contribution)."""
+        success = await self.withdraw_contribution(proposal_id, contributor_address)
+        if not success:
+            raise Exception("Failed to withdraw")
+        # Return empty info as it's withdrawn
+        return ContributionInfo(
+            contribution_id="withdrawn",
+            proposal_id=proposal_id,
+            contributor_address=contributor_address,
+            amount=0,
+            contributed_at=datetime.now(),
+            is_no_loss=False,
         )
-        return True
+
+    async def get_contributions(
+        self,
+        proposal_id: str,
+        contributor: Optional[str] = None,
+    ) -> List[ContributionInfo]:
+        """Get contributions (limited support)."""
+        if contributor:
+            info = await self.get_contribution(proposal_id, contributor)
+            return [info] if info else []
+        return [] # Full list not supported without indexer
 
     async def get_contribution(
         self,

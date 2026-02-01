@@ -114,7 +114,40 @@ class GaiaWhitelistService(WhitelistService):
             )
             return False
 
+    async def add_institution(
+        self,
+        address: str,
+        name: str,
+        region: str,
+        website: Optional[str] = None,
+        description: Optional[str] = None,
+    ) -> InstitutionInfo:
+        """Add institution (Register charity)."""
+        # Note: This requires the sender to be the owner/governance
+        tx_func = self._contract.functions.registerCharity(name, self._provider.web3.to_checksum_address(address))
+        result = self._provider.send_transaction(tx_func)
+        
+        if result["status"] != "success":
+             raise Exception(f"Failed to register charity: {result}")
+             
+        # We don't get the ID easily without parsing logs, so just return info
+        return InstitutionInfo(
+            institution_id="pending", 
+            name=name,
+            wallet_address=address,
+            is_verified=True,
+            description=description or ""
+        )
 
+    async def update_institution(
+        self,
+        address: str,
+        is_active: Optional[bool] = None,
+        name: Optional[str] = None,
+        region: Optional[str] = None,
+    ) -> InstitutionInfo:
+        """Update institution (Not fully supported on contract)."""
+        raise NotImplementedError("Update charity not fully supported on chain")
 # ============================================================================
 # Global Service Singleton
 # ============================================================================

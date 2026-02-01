@@ -148,3 +148,4 @@ class ChatResponse(BaseModel):
     action_taken: str
     ui_hints: Dict[str, Any]
     transaction_payload: Optional[Dict[str, Any]] = None
+    transaction_sequence: Optional[list[Dict[str, Any]]] = None

@@ -31,6 +31,8 @@ export default function SpoonOSInterface({ isOpen, onClose, selectedPoint, onAct
     const [messages, setMessages] = useState<Message[]>([]);
     const [txStatus, setTxStatus] = useState<'idle' | 'pending' | 'success' | 'error'>('idle');
     const [txHash, setTxHash] = useState<string | null>(null);
+    const [txSequence, setTxSequence] = useState<any[]>([]);
+    const [currentTxIdx, setCurrentTxIdx] = useState(0);
     const inputRef = useRef<HTMLInputElement>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -50,14 +52,16 @@ export default function SpoonOSInterface({ isOpen, onClose, selectedPoint, onAct
             return;
         }
 
-        // Check if on Sepolia network
-        if (chainId !== sepolia.id) {
+        const activePayload = txSequence.length > 0 ? txSequence[currentTxIdx] : payload;
+
+        // Check if we need to switch chain
+        if (activePayload.chainId && chainId !== activePayload.chainId) {
             try {
-                await switchChain({ chainId: sepolia.id });
+                await switchChain({ chainId: activePayload.chainId });
             } catch (error) {
                 setMessages(prev => [...prev, {
                     role: 'agent',
-                    content: "Please switch to Sepolia testnet to proceed with the transaction."
+                    content: `Please switch to network with Chain ID ${activePayload.chainId} to proceed.`
                 }]);
                 return;
             }
@@ -66,30 +70,40 @@ export default function SpoonOSInterface({ isOpen, onClose, selectedPoint, onAct
         setTxStatus('pending');
 
         try {
-            // Debug: Log the payload to verify gas value
-            console.log("[GaiaLink] Transaction payload:", payload);
-            console.log("[GaiaLink] Using gas limit:", payload.gas || "65000 (default)");
-
-            const gasLimit = BigInt(payload.gas || "65000");
-            console.log("[GaiaLink] Gas as BigInt:", gasLimit.toString());
-
+            const gasLimit = BigInt(activePayload.gas || "65000");
             const hash = await sendTransactionAsync({
-                to: payload.to as `0x${string}`,
-                value: BigInt(payload.value || "0"),
-                data: payload.data as `0x${string}`,
-                chainId: sepolia.id,
+                to: activePayload.to as `0x${string}`,
+                value: BigInt(activePayload.value || "0"),
+                data: activePayload.data as `0x${string}`,
+                chainId: activePayload.chainId || chainId,
                 gas: gasLimit,
             });
 
             setTxHash(hash);
             setTxStatus('success');
 
+            const label = activePayload.label || (txSequence.length > 0 ? `Step ${currentTxIdx + 1}` : "Transaction");
+
             setMessages(prev => [...prev, {
                 role: 'agent',
-                content: `Transaction submitted successfully!\n\nTx Hash: ${hash}\n\nView on Sepolia Etherscan: https://sepolia.etherscan.io/tx/${hash}`
+                content: `${label} submitted successfully!\n\nTx Hash: ${hash}`
             }]);
 
-            setMode('DECISION');
+            // Handle Sequence Logic
+            if (txSequence.length > 0 && currentTxIdx < txSequence.length - 1) {
+                // Not the last one
+                setTimeout(() => {
+                    setCurrentTxIdx(prev => prev + 1);
+                    setTxStatus('idle');
+                    setTxHash(null);
+                }, 2000); // Wait 2s to show success before next step
+            } else {
+                // Last or single transaction
+                setMode('DECISION');
+                // Reset sequence after completion
+                setTxSequence([]);
+                setCurrentTxIdx(0);
+            }
         } catch (error: any) {
             setTxStatus('error');
             console.error("Transaction failed:", error);
@@ -339,9 +353,11 @@ export default function SpoonOSInterface({ isOpen, onClose, selectedPoint, onAct
                                                 <Wallet className="w-10 h-10 text-yellow-400" />
                                             </div>
                                             <div className="space-y-2">
-                                                <h3 className="text-2xl font-bold text-white tracking-tight">Security Confirmation</h3>
+                                                <h3 className="text-2xl font-bold text-white tracking-tight">
+                                                    {txSequence.length > 0 ? txSequence[currentTxIdx].label || `Step ${currentTxIdx + 1} of ${txSequence.length}` : "Security Confirmation"}
+                                                </h3>
                                                 <p className="text-gray-400 max-w-sm">
-                                                    {messages[messages.length - 1]?.content || "Please review and sign the transaction."}
+                                                    {txSequence.length > 0 ? `Please sign and confirm the transaction for ${txSequence[currentTxIdx].label || 'this step'}.` : (messages[messages.length - 1]?.content || "Please review and sign the transaction.")}
                                                 </p>
                                             </div>
                                             <div className="w-full space-y-3 pt-4 px-4">
@@ -365,34 +381,53 @@ export default function SpoonOSInterface({ isOpen, onClose, selectedPoint, onAct
                                                     </div>
                                                 )}
 
-                                                {messages[messages.length - 1]?.response?.ui_hints.actions?.map((action, idx) => (
-                                                    <button
-                                                        key={idx}
-                                                        onClick={() => {
-                                                            const payload = messages[messages.length - 1]?.response?.transaction_payload;
-                                                            if (action.type === 'sign_transaction' && payload) {
-                                                                handleSignTransaction(payload);
-                                                            } else {
-                                                                onAction(action.type, payload);
-                                                                setMode('IDLE');
-                                                                onClose();
-                                                            }
-                                                        }}
-                                                        disabled={txStatus === 'pending'}
-                                                        className="w-full py-4 bg-yellow-500 text-black font-bold rounded-2xl hover:bg-yellow-400 transition transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                    >
-                                                        {txStatus === 'pending' ? (
-                                                            <Loader2 size={20} className="animate-spin" />
-                                                        ) : (
-                                                            <Send size={20} />
-                                                        )}
-                                                        {txStatus === 'pending' ? 'Confirming...' : action.label}
-                                                    </button>
-                                                ))}
+                                                {(() => {
+                                                    const actionableMsg = messages.slice().reverse().find(m => m.response?.ui_hints?.actions?.some((a: any) => a.type === 'sign_transaction'));
+                                                    const actions = actionableMsg?.response?.ui_hints.actions || [];
+                                                    const resp = actionableMsg?.response;
+
+                                                    return actions.map((action: any, idx: number) => (
+                                                        <button
+                                                            key={idx}
+                                                            onClick={() => {
+                                                                const payload = resp?.transaction_payload;
+                                                                const sequence = resp?.transaction_sequence;
+
+                                                                if (action.type === 'sign_transaction') {
+                                                                    if (sequence && sequence.length > 0) {
+                                                                        handleSignTransaction(sequence[currentTxIdx]);
+                                                                    } else if (payload) {
+                                                                        handleSignTransaction(payload);
+                                                                    }
+                                                                } else {
+                                                                    onAction(action.type, payload);
+                                                                    setMode('IDLE');
+                                                                    onClose();
+                                                                    setTxSequence([]);
+                                                                    setCurrentTxIdx(0);
+                                                                }
+                                                            }}
+                                                            disabled={txStatus === 'pending'}
+                                                            className="w-full py-4 bg-yellow-500 text-black font-bold rounded-2xl hover:bg-yellow-400 transition transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                        >
+                                                            {txStatus === 'pending' ? (
+                                                                <Loader2 size={20} className="animate-spin" />
+                                                            ) : (
+                                                                <Send size={20} />
+                                                            )}
+                                                            {txStatus === 'pending' ? 'Confirming...' : (txSequence.length > 0 ? txSequence[currentTxIdx].label || `Step ${currentTxIdx + 1}` : action.label)}
+                                                        </button>
+                                                    ));
+                                                })()}
                                                 <button
-                                                    onClick={() => { setMode('DECISION'); setTxStatus('idle'); }}
+                                                    onClick={() => {
+                                                        setMode('DECISION');
+                                                        setTxStatus('idle');
+                                                        setTxSequence([]);
+                                                        setCurrentTxIdx(0);
+                                                    }}
                                                     disabled={txStatus === 'pending'}
-                                                    className="w-full py-3 text-gray-500 hover:text-white transition disabled:opacity-50"
+                                                    className="w-full py-3 text-white/40 hover:text-white transition disabled:opacity-50 text-sm font-medium"
                                                 >
                                                     Cancel & Return to Chat
                                                 </button>
@@ -420,8 +455,12 @@ export default function SpoonOSInterface({ isOpen, onClose, selectedPoint, onAct
                                                                             if (act.type.startsWith('select_vault')) {
                                                                                 handleSubmit(act.label);
                                                                             } else if (act.type === 'sign_transaction') {
-                                                                                const payload = msg.response?.transaction_payload;
-                                                                                if (payload) {
+                                                                                const resp = msg.response;
+                                                                                if (resp?.transaction_sequence) {
+                                                                                    setTxSequence(resp.transaction_sequence);
+                                                                                    setCurrentTxIdx(0);
+                                                                                    setMode('SIGNATURE');
+                                                                                } else if (resp?.transaction_payload) {
                                                                                     setMode('SIGNATURE');
                                                                                 }
                                                                             } else {

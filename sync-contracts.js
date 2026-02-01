@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 // Configuration
+// Use DeployGaia.s.sol latest local run
 const BROADCAST_DIR = path.join(__dirname, 'contracts/broadcast/SetupDemo.s.sol/31337');
 const OUTPUT_FILE = path.join(__dirname, 'frontend/src/lib/contracts.ts');
 

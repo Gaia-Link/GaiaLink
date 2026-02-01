@@ -25,6 +25,7 @@ export interface AgentResponse {
         }>;
     };
     transaction_payload?: any;
+    transaction_sequence?: any[];
 }
 
 export const MockAgentResponses: Record<string, AgentResponse> = {

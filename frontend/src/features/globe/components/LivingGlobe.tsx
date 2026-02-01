@@ -10,9 +10,10 @@ export interface LivingGlobeProps {
     isLaunched?: boolean;
     activeSection?: number;
     scrollProgress?: number;
+    flyToLocation?: { lng: number, lat: number } | null;
 }
 
-export default function LivingGlobe({ data, onPointClick, isLaunched = true, activeSection = 0, scrollProgress = 0 }: LivingGlobeProps) {
+export default function LivingGlobe({ data, onPointClick, isLaunched = true, activeSection = 0, scrollProgress = 0, flyToLocation }: LivingGlobeProps) {
     const [viewState, setViewState] = useState({
         longitude: 0,
         latitude: 0, // Center the globe vertically
@@ -61,6 +62,21 @@ export default function LivingGlobe({ data, onPointClick, isLaunched = true, act
         } as any));
 
     }, [activeSection, isLaunched, scrollProgress]);
+
+    // Effect: Handle Agent FlyTo Commands
+    useEffect(() => {
+        if (flyToLocation) {
+            console.log("✈️ Flying to location:", flyToLocation);
+            setViewState(prev => ({
+                ...prev,
+                longitude: flyToLocation.lng,
+                latitude: flyToLocation.lat,
+                zoom: 4, // Closer zoom for specific locations
+                transitionDuration: 2000,
+                transitionEasing: (t: number) => t * (2 - t) // Ease-out
+            }));
+        }
+    }, [flyToLocation]);
 
 
     const getMarkerColor = (point: CrisisPoint) => {

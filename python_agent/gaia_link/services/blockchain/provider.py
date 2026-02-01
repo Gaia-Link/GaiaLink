@@ -172,9 +172,15 @@ class Web3Provider:
             tx["maxPriorityFeePerGas"] = (
                 self._config.max_priority_fee or self._config.max_fee_per_gas // 10
             )
-        else:
-            # Use legacy gas price
-            tx["gasPrice"] = self.web3.eth.gas_price
+            tx["maxPriorityFeePerGas"] = (
+                self._config.max_priority_fee or self._config.max_fee_per_gas // 10
+            )
+        elif "maxFeePerGas" not in tx and "gasPrice" not in tx:
+            # Use legacy gas price only if no fee fields are present
+            try:
+                tx["gasPrice"] = self.web3.eth.gas_price
+            except Exception:
+                pass # Let web3/client handle it or fail later if needed
 
         # Sign and send
         signed_tx = self.web3.eth.account.sign_transaction(tx, self.account.key)

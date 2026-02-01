@@ -40,8 +40,24 @@ def get_donation_history_service() -> DonationHistoryService:
     """
     global _donation_history_service
     if _donation_history_service is None:
-        _donation_history_service = MockDonationHistoryService()
-        logger.info("[MOCK] Using MockDonationHistoryService")
+        import os
+        use_blockchain = os.getenv("USE_BLOCKCHAIN", "false").lower() in ("true", "1", "yes")
+        
+        if use_blockchain:
+             try:
+                from gaia_link.services.blockchain.gaia_donation_history import GaiaDonationHistoryService
+                _donation_history_service = GaiaDonationHistoryService()
+                logger.info("[BLOCKCHAIN] Using GaiaDonationHistoryService")
+             except ImportError as e:
+                logger.warning(f"[FALLBACK] Failed to import GaiaDonationHistoryService: {e}")
+                _donation_history_service = MockDonationHistoryService()
+             except Exception as e:
+                logger.warning(f"[FALLBACK] Failed to init blockchain history: {e}")
+                _donation_history_service = MockDonationHistoryService()
+        else:
+            _donation_history_service = MockDonationHistoryService()
+            logger.info("[MOCK] Using MockDonationHistoryService")
+            
     return _donation_history_service
 
 

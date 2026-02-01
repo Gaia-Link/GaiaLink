@@ -37,9 +37,9 @@ class QueryProposalsTool(BaseTool):
                 "type": "string",
                 "description": "Filter by institution address",
             },
-            "region": {
+            "query": {
                 "type": "string",
-                "description": "Filter by region",
+                "description": "Search by proposal title (partial match)",
             },
             "limit": {
                 "type": "integer",
@@ -54,6 +54,7 @@ class QueryProposalsTool(BaseTool):
         status: Optional[str] = None,
         institution: Optional[str] = None,
         region: Optional[str] = None,
+        query: Optional[str] = None,
         limit: int = 20,
     ) -> dict:
         """
@@ -89,6 +90,7 @@ class QueryProposalsTool(BaseTool):
                 status=status_enum,
                 institution=institution,
                 region=region,
+                title_query=query,
                 limit=limit,
             )
 
@@ -106,6 +108,7 @@ class QueryProposalsTool(BaseTool):
                         "status": p.status.name,
                         "deadline": p.deadline.isoformat(),
                         "region": p.region,
+                        "location": p.location,
                         "contributors_count": p.contributors_count,
                     }
                     for p in proposals

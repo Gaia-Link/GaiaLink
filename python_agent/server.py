@@ -67,7 +67,7 @@ async def handle_donation_request(message_lower: str):
         "message": f"Ready to donate {amount} USDC to the humanitarian aid vault on Sepolia testnet. Please review and sign the transaction.",
         "action_taken": "execute_donation",
         "ui_hints": {
-            "mode": "SIGNATURE",
+            "mode": "DECISION",
             "display_data": {
                 "title": f"Donate {amount} USDC",
                 "badge_text": "Ready to Sign",

@@ -16,6 +16,7 @@ from pydantic import BaseModel
 
 from gaia_link.agent_v2 import GaiaLinkAgentV2
 from gaia_link.tools import VerifyCrisisTool, ListCrisesTool, ExecuteDonationTool
+from gaia_link.services.blockchain.config import get_blockchain_config
 
 from gaia_link.schemas import ChatResponse
 
@@ -78,60 +79,26 @@ class GaiaLinkService:
             transaction_payload = data.get("transaction_payload")
             ui_hints = data.get("ui_hints", {"mode": "IDLE", "actions": []})
 
-            # Check if plain text response contains donation transaction details
-            if action_taken == "chat" and self._is_donation_response(response_text):
-                print("--- Service: Detected donation response in plain text ---")
-                amount = self._extract_amount_from_message(response_text)
-                token = self._extract_token_from_message(response_text)
+            # 4. Detect donation response
+            is_donation_intent = (
+                action_taken == "execute_donation" or 
+                self._is_donation_response(response_text) or
+                (self._is_donation_response(message) and any(kw in response_text for kw in ["捐", "地址", "白名單", "1", "USDC"]))
+            )
 
-                tool = ExecuteDonationTool()
-                result = await tool.execute(
-                    amount=amount,
-                    token=token,
-                    recipient_address="0x742d35Cc6634C0532925a3b844Bc9e7595f5bE91"
-                )
+            if is_donation_intent:
+                print(f"--- Service: Preparing donation response (Action: {action_taken}) ---")
+                # Combine original message + agent response to ensure we have all context (amount, token, name)
+                combined_text = f"{message} | {data.get('message', response_text)}"
+                return await self._prepare_donation_response(combined_text)
 
-                return ChatResponse(
-                    message=data.get("message", response_text),
-                    action_taken="execute_donation",
-                    ui_hints={
-                        "mode": "SIGNATURE",
-                        "display_data": {
-                            "title": f"Donate {amount} {token}",
-                            "badge_text": "Ready to Sign",
-                            "badge_color": "green",
-                            "risk_level": "LOW"
-                        },
-                        "actions": [{"label": "Sign Transaction", "type": "sign_transaction", "icon": "pen-tool"}]
-                    },
-                    transaction_payload=result.get("transaction_payload")
-                )
-
-            if action_taken == "execute_donation" and not transaction_payload:
-                # Agent said it prepared donation but didn't include payload - generate it
-                print("--- Service: Generating missing transaction_payload ---")
-                amount = self._extract_amount_from_message(data.get("message", ""))
-                token = self._extract_token_from_message(data.get("message", ""))
-
-                tool = ExecuteDonationTool()
-                result = await tool.execute(
-                    amount=amount,
-                    token=token,
-                    recipient_address="0x742d35Cc6634C0532925a3b844Bc9e7595f5bE91"
-                )
-                transaction_payload = result.get("transaction_payload")
-
-                # Ensure UI mode is SIGNATURE for donation
-                ui_hints = {
-                    "mode": "SIGNATURE",
-                    "display_data": {
-                        "title": f"Donate {amount} {token}",
-                        "badge_text": "Ready to Sign",
-                        "badge_color": "green",
-                        "risk_level": "LOW"
-                    },
-                    "actions": [{"label": "Sign Transaction", "type": "sign_transaction", "icon": "pen-tool"}]
-                }
+            # 5. Standard Response
+            return ChatResponse(
+                message=data.get("message", response_text),
+                action_taken=action_taken,
+                ui_hints=ui_hints,
+                transaction_payload=transaction_payload
+            )
 
             # 5. Standard Response
             return ChatResponse(
@@ -209,34 +176,49 @@ class GaiaLinkService:
                 return token
         return "USDC"  # Default
 
+    def _extract_proposal_id_from_message(self, message: str) -> Optional[str]:
+        """Extract proposal ID from message text"""
+        # Match patterns like "Proposal #0", "ID: 0", "提案 0", "proposal 0"
+        match = re.search(r'(?:proposal|提案|ID|#)\s*:?\s*(\d+)', message, re.IGNORECASE)
+        if match:
+            return match.group(1)
+        return None
+
+    def _extract_proposal_name_from_message(self, message: str) -> Optional[str]:
+        """Extract proposal name from message text for direct donation"""
+        # Look for phrases like "向 [Name] 捐款", "donate to [Name]"
+        patterns = [
+            r'(?:向|給)\s*([^直接\s]+(?: [^直接\s]+)*)\s*(?:直接)?(?:捐款|捐贈|捐)',
+            r'donate to\s*(.+?)\s*(?:directly|now|1|usdc|usdt|eth|dai|$)',
+            r'幫助\s*(.+)',
+            # Fallback: anything between '向' and '直接' or '捐'
+            r'向\s*(.+?)\s*(?:直接|捐)',
+        ]
+        for pattern in patterns:
+            match = re.search(pattern, message, re.IGNORECASE)
+            if match:
+                name = match.group(1).strip()
+                # Remove artifacts like 1 USDC if caught
+                name = re.sub(r'\d+(\.\d+)?\s*(USDC|USDT|ETH|DAI).*', '', name, flags=re.IGNORECASE).strip()
+                if name and len(name) > 2: return name
+        return None
+
     def _is_donation_response(self, text: str) -> bool:
-        """Detect if response contains a PREPARED donation transaction.
-
-        Uses STRUCTURAL patterns (Ethereum addresses, Gas, contract info) instead of
-        keywords for reliable detection. This avoids issues like "捐款" vs "捐贈".
-
-        Requires at least 3 of these structural indicators:
-        1. Ethereum address (0x + 40 hex chars)
-        2. Gas estimate
-        3. Token amount (e.g., "10 USDC")
-        4. Contract/address terminology
+        """Detect if response suggests a donation is being prepared or discussed.
+        
+        More aggressive detection to ensure the UI button appears.
         """
-        # Pattern 1: Ethereum address (0x followed by 40 hex chars)
-        has_eth_address = bool(re.search(r'0x[a-fA-F0-9]{40}', text))
-
-        # Pattern 2: Gas estimate (various formats)
-        has_gas = bool(re.search(r'[Gg]as[：:]\s*[\d,]+', text))
-
-        # Pattern 3: Token amount with known tokens
-        has_token_amount = bool(re.search(r'\d+(?:\.\d+)?\s*(?:USDC|USDT|ETH|DAI)', text, re.IGNORECASE))
-
-        # Pattern 4: Contract/address terminology (language-agnostic)
-        has_contract_terms = bool(re.search(r'合約|地址|contract|address', text, re.IGNORECASE))
-
-        # Must have at least 3 of 4 patterns to be a prepared transaction
-        patterns_matched = sum([has_eth_address, has_gas, has_token_amount, has_contract_terms])
-
-        return patterns_matched >= 3
+        # Pattern 1: Keywords suggesting intent
+        has_donation_intent = bool(re.search(r'捐贈|捐款|donate|donation|give|help with|支付|授權', text, re.IGNORECASE))
+        
+        # Pattern 2: Token amount (e.g., "1 USDC", "1USDC")
+        has_token_amount = bool(re.search(r'\d+(?:\.\d+)?\s*(USDC|USDT|ETH|DAI)', text, re.IGNORECASE))
+        
+        # Pattern 3: Structural indicators (ETH address or Gas)
+        has_structural = bool(re.search(r'0x[a-fA-F0-9]{40}|[Gg]as', text))
+        
+        # Match if it has (intent AND amount) OR structural indicators
+        return (has_donation_intent and has_token_amount) or has_structural
 
     async def _handle_tool_interception(self, tool_code: str) -> ChatResponse:
         """
@@ -267,11 +249,82 @@ class GaiaLinkService:
                         "risk_level": "LOW"
                     },
                     "actions": [
-                        {"label": "Donate 100 USDC", "type": "input_prompt", "icon": "heart"},
                         {"label": "Verify a Crisis", "type": "input_prompt", "icon": "search"}
                     ]
                 }
             )
+
+            # If we have a top crisis with coordinates, trigger FLY_TO for the first one
+            if crises_list and "coordinates" in crises_list[0] and crises_list[0]["coordinates"]:
+                coords = crises_list[0]["coordinates"]
+                # Add fly_to action to ui_hints
+                response_obj.ui_hints["actions"].insert(0, {
+                    "label": f"View {crises_list[0]['title']}", 
+                    "type": "FLY_TO_LOCATION", 
+                    "data": {"lat": coords["lat"], "lng": coords["lng"]},
+                    "icon": "globe"
+                })
+
+            return response_obj
+
+            return response_obj
+
+        elif "query_proposals" in tool_code:
+            # Extract result from tool execution if possible, or wait for next turn
+            # But here we are post-execution (in process_message, 'result' is available?)
+            # Actually process_message logic separates tool execution.
+            # We need to handle this where 'result' is available.
+            # Looking at code flow: process_message calls tool.execute, gets result.
+            
+            # Since this block is inside a long elif chain checking tool_code string,
+            # this logic seems to be for converting tool OUTPUT to ChatResponse.
+            # Let's adapt the existing pattern.
+            
+            proposals = result.get("proposals", []) if isinstance(result, dict) else []
+            count = result.get("total_count", 0) if isinstance(result, dict) else 0
+            
+            if count > 0:
+                top_proposal = proposals[0]
+                message = f"Found {count} proposals. Top result: {top_proposal['title']} in {top_proposal.get('region', 'unknown region')}."
+                
+                ui_hints = {
+                    "mode": "DECISION",
+                    "display_data": {
+                        "type": "proposal_list", 
+                        "data": proposals
+                    },
+                    "actions": []
+                }
+                
+                # Add View/Fly actions for the top proposal
+                if "location" in top_proposal and top_proposal["location"]:
+                    loc = top_proposal["location"]
+                    ui_hints["actions"].append({
+                        "label": f"View {top_proposal['title']}",
+                        "type": "OPEN_PROPOSAL",
+                        "data": {
+                            "id": top_proposal["id"],
+                            "lat": loc["lat"],
+                            "lng": loc["lng"]
+                        },
+                        "icon": "eye"
+                    })
+                    # Also fly there immediately? Maybe just let user click.
+                    # User asked: "if mentioned, fly to and open".
+                    # So we should probably send a fly action automatically or as part of the response effect.
+                    # But separate actions are better for UI buttons.
+                    # For immediate effect, maybe we can send a "side_effect" or just put it in actions and frontend triggers it?
+                    # The previous impl for list_crises added a button.
+                    # Let's add a button that does BOTH fly and open.
+                    
+                response_obj = ChatResponse(
+                    message=message,
+                    action_taken="query_proposals",
+                    ui_hints=ui_hints,
+                    transaction_payload=None
+                )
+                return response_obj
+
 
         elif "verify_crisis" in tool_code:
             # Extract crisis name
@@ -312,40 +365,145 @@ class GaiaLinkService:
             )
             
         elif "execute_donation" in tool_code:
-            # Extract amount from tool_code
-            amount_match = re.search(r"amount=(\d+(?:\.\d+)?)", tool_code)
-            amount = float(amount_match.group(1)) if amount_match else 100.0
-
-            # Extract token
-            token_match = re.search(r"token=['\"]?(\w+)['\"]?", tool_code)
-            token = token_match.group(1).upper() if token_match else "USDC"
-
-            tool = ExecuteDonationTool()
-            result = await tool.execute(
-                amount=amount,
-                token=token,
-                recipient_address="0x742d35Cc6634C0532925a3b844Bc9e7595f5bE91"
-            )
-
-            return ChatResponse(
-                message=f"Ready to donate {amount} {token}. Please sign the transaction.",
-                action_taken="execute_donation",
-                ui_hints={
-                    "mode": "SIGNATURE",
-                    "display_data": {
-                        "title": f"Donate {amount} {token}",
-                        "badge_text": "Ready to Sign",
-                        "badge_color": "green",
-                        "risk_level": "LOW"
-                    },
-                    "actions": [{"label": "Sign Transaction", "type": "sign_transaction", "icon": "pen-tool"}]
-                },
-                transaction_payload=result.get("transaction_payload")
-            )
+            return await self._prepare_donation_response(tool_code)
 
         # Default fallback if tool code not recognized
         return ChatResponse(
             message=f"Agent requested tool execution: {tool_code}",
             action_taken="tool_code_returned",
             ui_hints={"mode": "THINKING", "actions": []}
+        )
+
+    async def _prepare_donation_response(self, text: str) -> ChatResponse:
+        """Shared helper to generate a standardized donation response with payload and button."""
+        amount = self._extract_amount_from_message(text)
+        token = self._extract_token_from_message(text)
+        proposal_id = self._extract_proposal_id_from_message(text)
+        proposal_name = self._extract_proposal_name_from_message(text)
+
+        # Handle 'random' donation request if ID/Name are missing
+        if not proposal_id and not proposal_name and any(kw in text.lower() for kw in ["隨機", "random", "any", "選一個"]):
+            from gaia_link.services.blockchain.gaia_proposal import get_gaia_proposal_service
+            from gaia_link.services.proposal.models import ProposalStatus
+            import random
+            
+            p_service = get_gaia_proposal_service()
+            all_proposals = await p_service.list_proposals(status=ProposalStatus.FUNDING)
+            
+            if all_proposals:
+                selected = random.choice(all_proposals)
+                proposal_id = selected.proposal_id
+                proposal_name = selected.title
+                print(f"--- Service: Selected random proposal: {proposal_name} (ID: {proposal_id}) ---")
+                # Prepend the selection to the text so the tool sees it
+                text = f"Randomly selected {proposal_name} (ID: {proposal_id}) | {text}"
+        
+        # Detect if user explicitly wants to approve
+        is_approval = "approve" in text.lower() or "授權" in text or "allowance" in text.lower()
+
+        blockchain_config = get_blockchain_config()
+        
+        tool = ExecuteDonationTool()
+        result = await tool.execute(
+            amount=amount,
+            token=token,
+            proposal_id=proposal_id,
+            proposal_name=proposal_name,
+            recipient_address=blockchain_config.addresses.proposal_manager,
+            action="APPROVE" if is_approval else "DEPOSIT"
+        )
+
+        # Update proposal_id if tool resolved it from name
+        details = result.get("details") or {}
+        if not proposal_id and details.get("proposal_id"):
+             proposal_id = details["proposal_id"]
+             print(f"--- Service: Updated proposal_id to {proposal_id} from tool resolution ---")
+
+        if not result.get("success"):
+            return ChatResponse(
+                message=f"I couldn't prepare the donation: {result.get('error', 'Unknown error')}. Please make sure you specified a valid project name or ID.",
+                action_taken="error",
+                ui_hints={"mode": "IDLE", "actions": []}
+            )
+
+        if is_approval:
+            return ChatResponse(
+                message=f"I've prepared the USDC approval for {amount} {token}. Once this is signed, you can proceed with the donation.",
+                action_taken="execute_donation",
+                ui_hints={
+                    "mode": "DECISION",
+                    "display_data": {
+                        "title": f"Approve {amount} {token}",
+                        "badge_text": "Approval Needed",
+                        "badge_color": "yellow",
+                        "risk_level": "LOW"
+                    },
+                    "actions": [{"label": "Sign Approval", "type": "sign_transaction", "icon": "shield-check"}]
+                },
+                transaction_payload=result.get("transaction_payload")
+            )
+
+        # Handle Donation (DEPOSIT)
+        proposal_info = f" to Proposal #{proposal_id}" if proposal_id else ""
+        
+        # If USDC, we provide a sequence: [APPROVE, DEPOSIT]
+        if token == "USDC":
+            approve_result = await tool.execute(
+                amount=amount,
+                token=token,
+                proposal_id=proposal_id,
+                proposal_name=proposal_name,
+                recipient_address=blockchain_config.addresses.proposal_manager,
+                action="APPROVE"
+            )
+
+            if not approve_result.get("success"):
+                return ChatResponse(
+                    message=f"I couldn't prepare the approval: {approve_result.get('error', 'Unknown error')}.",
+                    action_taken="error",
+                    ui_hints={"mode": "IDLE", "actions": []}
+                )
+
+            approve_payload = approve_result.get("transaction_payload") or {}
+            deposit_payload = result.get("transaction_payload") or {}
+            
+            return ChatResponse(
+                message=text if len(text) > 20 else f"I've prepared the two-step donation for {amount} {token}{proposal_info}. \n\n1. **Approve**: Authorize the contract to spend your USDC.\n2. **Confirm**: Execute the actual donation.",
+                action_taken="execute_donation",
+                ui_hints={
+                    "mode": "DECISION",
+                    "display_data": {
+                        "title": f"Donate {amount} {token}{proposal_info}",
+                        "badge_text": "2 Steps Required",
+                        "badge_color": "blue",
+                        "risk_level": "LOW"
+                    },
+                    "actions": [
+                        {"label": "Start Donation", "type": "sign_transaction", "icon": "pen-tool"}
+                    ]
+                },
+                transaction_payload=approve_payload, # First step
+                transaction_sequence=[
+                    {**approve_payload, "label": "Step 1: Approve USDC"},
+                    {**deposit_payload, "label": "Step 2: Confirm Donation"}
+                ]
+            )
+
+        # Default single transaction (e.g. ETH)
+        return ChatResponse(
+            message=text if len(text) > 20 else f"I've prepared your donation of {amount} {token}{proposal_info}.",
+            action_taken="execute_donation",
+            ui_hints={
+                "mode": "DECISION",
+                "display_data": {
+                    "title": f"Donate {amount} {token}{proposal_info}",
+                    "badge_text": "Ready to Sign",
+                    "badge_color": "green",
+                    "risk_level": "LOW"
+                },
+                "actions": [
+                    {"label": "Sign Donation", "type": "sign_transaction", "icon": "pen-tool"}
+                ]
+            },
+            transaction_payload=result.get("transaction_payload")
         )

@@ -26,13 +26,13 @@ GDELT_GEO_URL = "https://api.gdeltproject.org/api/v2/geo/geo"
 # Top humanitarian crisis regions with optimized GDELT queries
 # Use broader terms for better API response
 HUMANITARIAN_CRISES = [
-    {"query": "ukraine", "name": "Ukraine Humanitarian Crisis", "region": "Ukraine", "type": "Armed Conflict"},
-    {"query": "gaza", "name": "Gaza Humanitarian Crisis", "region": "Gaza Strip", "type": "Armed Conflict"},
-    {"query": "sudan conflict", "name": "Sudan Civil War & Famine", "region": "Sudan", "type": "Armed Conflict"},
-    {"query": "syria", "name": "Syria Humanitarian Crisis", "region": "Syria", "type": "Armed Conflict"},
-    {"query": "yemen", "name": "Yemen Humanitarian Crisis", "region": "Yemen", "type": "Armed Conflict"},
-    {"query": "myanmar", "name": "Myanmar Civil Conflict", "region": "Myanmar", "type": "Armed Conflict"},
-    {"query": "haiti crisis", "name": "Haiti Humanitarian Crisis", "region": "Haiti", "type": "Armed Conflict"},
+    {"query": "ukraine", "name": "Ukraine Humanitarian Crisis", "region": "Ukraine", "type": "Armed Conflict", "lat": 48.37, "lng": 31.16},
+    {"query": "gaza", "name": "Gaza Humanitarian Crisis", "region": "Gaza Strip", "type": "Armed Conflict", "lat": 31.35, "lng": 34.30},
+    {"query": "sudan conflict", "name": "Sudan Civil War & Famine", "region": "Sudan", "type": "Armed Conflict", "lat": 12.86, "lng": 30.21},
+    {"query": "syria", "name": "Syria Humanitarian Crisis", "region": "Syria", "type": "Armed Conflict", "lat": 34.80, "lng": 39.04},
+    {"query": "yemen", "name": "Yemen Humanitarian Crisis", "region": "Yemen", "type": "Armed Conflict", "lat": 15.55, "lng": 48.51},
+    {"query": "myanmar", "name": "Myanmar Civil Conflict", "region": "Myanmar", "type": "Armed Conflict", "lat": 21.91, "lng": 95.95},
+    {"query": "haiti crisis", "name": "Haiti Humanitarian Crisis", "region": "Haiti", "type": "Armed Conflict", "lat": 18.97, "lng": -72.28},
 ]
 
 # EONET category mappings
@@ -235,7 +235,9 @@ class ListCrisesTool(BaseTool):
                     "verification": "VERIFIED",
                     "type": crisis_info["type"],
                     "news_count": total_count,
-                    "source": "GDELT News"
+                    "news_count": total_count,
+                    "source": "GDELT News",
+                    "coordinates": {"lat": crisis_info["lat"], "lng": crisis_info["lng"]}
                 }
             except Exception:
                 return None
@@ -304,7 +306,9 @@ class ListCrisesTool(BaseTool):
                 "verification": "VERIFIED",
                 "type": category_name,
                 "news_count": 0,
-                "source": "NASA EONET"
+                "news_count": 0,
+                "source": "NASA EONET",
+                "coordinates": {"lat": geometry[-1]["coordinates"][1], "lng": geometry[-1]["coordinates"][0]} if geometry else None
             })
 
         return crises
@@ -367,7 +371,9 @@ class ListCrisesTool(BaseTool):
                 "verification": c.get("verification", {}).get("status"),
                 "type": "Humanitarian",
                 "news_count": 0,
-                "source": "GaiaLink Database"
+                "news_count": 0,
+                "source": "GaiaLink Database",
+                "coordinates": c.get("location", {}).get("coordinates")
             } for c in crises]
 
             return {

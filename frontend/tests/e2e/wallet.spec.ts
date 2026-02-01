@@ -1,11 +1,11 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 
 /**
  * GaiaLink Wallet Connection E2E Tests
  * Tests the wallet connection UI (without actual wallet interaction)
  */
 test.describe('Wallet Connection UI', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page }: { page: Page }) => {
     await page.goto('/');
     // Launch the app (force click due to animation)
     const launchButton = page.getByRole('button', { name: /Launch OS/i }).first();
@@ -14,13 +14,13 @@ test.describe('Wallet Connection UI', () => {
     await expect(page.getByRole('heading', { name: 'GAIALINK', exact: true })).toBeVisible({ timeout: 10000 });
   });
 
-  test('should display Connect Wallet button', async ({ page }) => {
+  test('should display Connect Wallet button', async ({ page }: { page: Page }) => {
     // RainbowKit ConnectButton renders a button for wallet connection
     const connectButton = page.getByRole('button', { name: /Connect Wallet/i });
     await expect(connectButton.first()).toBeVisible({ timeout: 5000 });
   });
 
-  test('should open wallet connection modal when clicked', async ({ page }) => {
+  test('should open wallet connection modal when clicked', async ({ page }: { page: Page }) => {
     // Find and click the connect wallet button
     const connectButton = page.getByRole('button', { name: /Connect Wallet/i });
     await connectButton.first().click();
@@ -31,7 +31,7 @@ test.describe('Wallet Connection UI', () => {
     await expect(modal.first()).toBeVisible({ timeout: 5000 });
   });
 
-  test('should show wallet provider options in modal', async ({ page }) => {
+  test('should show wallet provider options in modal', async ({ page }: { page: Page }) => {
     // Open the wallet modal
     const connectButton = page.getByRole('button', { name: /Connect Wallet/i });
     await connectButton.first().click();
@@ -50,7 +50,7 @@ test.describe('Wallet Connection UI', () => {
     expect(count).toBeGreaterThan(0);
   });
 
-  test('should close wallet modal when clicking outside or close button', async ({ page }) => {
+  test('should close wallet modal when clicking outside or close button', async ({ page }: { page: Page }) => {
     // Open the wallet modal
     const connectButton = page.getByRole('button', { name: /Connect Wallet/i });
     await connectButton.first().click();

@@ -33,6 +33,7 @@ export default function Page() { // Unified Entry Point
     const [isSpoonOpen, setIsSpoonOpen] = useState(false);     // Controls visibility
     const [isDonationOpen, setIsDonationOpen] = useState(false);
     const [isPortfolioOpen, setIsPortfolioOpen] = useState(false);
+    const [flyToLocation, setFlyToLocation] = useState<{ lng: number, lat: number } | null>(null);
 
     // --- Data & Hooks ---
     const { sendTransaction } = useSendTransaction();
@@ -76,7 +77,45 @@ export default function Page() { // Unified Entry Point
     const handleSpoonAction = (action: string, data?: any) => {
         console.log('SpoonOS Action:', action, data);
 
-        if (action === 'OPEN_DONATION') {
+        if (action === 'FLY_TO_LOCATION' && data) {
+            setFlyToLocation(data);
+        }
+        else if (action === 'OPEN_PROPOSAL' && data) {
+            console.log("📂 Opening proposal:", data);
+            // 1. Fly to location
+            if (data.lat && data.lng) {
+                setFlyToLocation({ lat: data.lat, lng: data.lng });
+            }
+
+            // 2. Open details (Requires finding the point or constructing a mock one)
+            // Since we have data.id, we can look it up in 'data' (onChainProposals)
+            const proposal = onChainProposals.find(p => p.id === data.id.toString());
+
+            if (proposal) {
+                setSelectedPoint(proposal);
+                setIsDonationOpen(true);
+            } else {
+                // Fallback if not found in current globe data (maybe filtered out or fresh)
+                // Construct a temporary point object
+                const tempPoint: CrisisPoint = {
+                    id: data.id.toString(),
+                    lat: data.lat || 0,
+                    lng: data.lng || 0,
+                    title: "Proposal Details", // Placeholder
+                    label: "Loading...",
+                    type: 'node',
+                    intensity: 1,
+                    hasVault: true,
+                    // Add other required fields with defaults
+                };
+                // We might need to fetch details if not in list, but for now try to open with limited info
+                // or just rely on DonationModal fetching details by ID? 
+                // DonationModal takes 'point' which is CrisisPoint.
+                // Let's rely on finding it first.
+                console.warn("Proposal not found in current globe data:", data.id);
+            }
+        }
+        else if (action === 'OPEN_DONATION') {
             setIsDonationOpen(true);
             if (data) setSelectedPoint(data);
         }
@@ -119,6 +158,7 @@ export default function Page() { // Unified Entry Point
                     isLaunched={isLaunched}
                     activeSection={activeSection}
                     scrollProgress={scrollProgress}
+                    flyToLocation={flyToLocation}
                 />
             </div>
 

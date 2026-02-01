@@ -3,7 +3,7 @@ name = "gaia-link-agent"
 version = "1.0.0"
 description = "Gaia Link SpoonOS AI Agent - 人道救援協作網絡"
 readme = "../README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 license = {text = "MIT"}
 authors = [
     {name = "Gaia Link Team"}

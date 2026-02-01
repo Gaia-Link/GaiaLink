@@ -5,6 +5,7 @@ Gaia Link 配置管理
 """
 
 from enum import Enum
+import os
 from functools import lru_cache
 from typing import Optional
 
@@ -16,6 +17,7 @@ class BlockchainNetwork(str, Enum):
     """支援的區塊鏈網絡"""
     MOCK = "mock"
     SEPOLIA = "sepolia"
+    FOUNDRY = "foundry"
     MAINNET = "mainnet"  # 未來支援
 
 
@@ -166,6 +168,10 @@ class Settings(BaseSettings):
         """檢查是否為測試網"""
         return self.blockchain_network == BlockchainNetwork.SEPOLIA
 
+    def is_foundry(self) -> bool:
+        """檢查是否為 Foundry 本地網絡"""
+        return self.blockchain_network == BlockchainNetwork.FOUNDRY
+
     def is_mock(self) -> bool:
         """檢查是否為 Mock 區塊鏈模式"""
         return self.blockchain_network == BlockchainNetwork.MOCK
@@ -218,6 +224,14 @@ def get_blockchain_service():
         from gaia_link.services import get_sepolia_service
         return get_sepolia_service(
             rpc_url=settings.sepolia_rpc_url,
+            private_key=settings.wallet_private_key,
+        )
+
+    elif settings.blockchain_network == "foundry":
+        # Foundry uses the same infrastructure as Sepolia (Web3) but typically with local RPC
+        from gaia_link.services import get_sepolia_service
+        return get_sepolia_service(
+            rpc_url=os.getenv("SEPOLIA_RPC_URL", "http://localhost:8545"), # Default to local
             private_key=settings.wallet_private_key,
         )
 
