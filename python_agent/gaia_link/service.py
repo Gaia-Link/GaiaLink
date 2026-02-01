@@ -63,6 +63,8 @@ class GaiaLinkService:
 
             # NOTE: Do NOT reset memory here - it breaks conversation context.
             # Memory is only reset when tool_call_id errors occur (in error handler below).
+            
+            user_address = context_data.get("user_address") if context_data else None
 
             # 1. Run the Agent
             # Inject Context into Message if present
@@ -81,7 +83,7 @@ class GaiaLinkService:
 
             # 3. Intercept Tool Execution (Fix for Agent returning raw tool_code)
             if "tool_code" in data:
-                return await self._handle_tool_interception(data["tool_code"])
+                return await self._handle_tool_interception(data["tool_code"], user_address=user_address)
 
             # 4. Detect donation response from plain text (Agent didn't return JSON)
             action_taken = data.get("action_taken", "chat")
@@ -127,7 +129,10 @@ class GaiaLinkService:
                 # OPTIMIZATION: Check Agent Memory for ALREADY EXECUTED donation tool results.
                 # If the agent just ran 'execute_donation' and succeeded, we should reuse that payload
                 # instead of trying to re-parse the name and execute again (which risks regex failure).
-                if hasattr(self.agent, "memory"):
+                # OPTIMIZATION: Check Agent Memory for ALREADY EXECUTED donation tool results.
+                # If user_address is present, we SHOULD NOT reuse payload because the agent likely ran
+                # the tool without user_address (so no allowance check). We must re-run to inject it.
+                if hasattr(self.agent, "memory") and not user_address:
                     try:
                         # Iterate backwards looking for the most recent tool execution
                         for i, msg in enumerate(reversed(self.agent.memory.messages)):
@@ -224,7 +229,8 @@ class GaiaLinkService:
                     override_amount=override_amount,
                     override_token=override_token,
                     override_proposal_id=override_id,
-                    override_proposal_name=override_name
+                    override_proposal_name=override_name,
+                    user_address=user_address
                 )
 
             # 4.5 Detect Withdrawal Response (Fix for missing blue button)
@@ -244,8 +250,8 @@ class GaiaLinkService:
                         # Iterate backwards
                         for msg in reversed(self.agent.memory.messages):
                             # Robust access for role and content (Object or Dict)
-                            role = getattr(msg, "role", None) or msg.get("role")
-                            content = getattr(msg, "content", None) or msg.get("content")
+                            role = msg.get("role") if isinstance(msg, dict) else getattr(msg, "role", None)
+                            content = msg.get("content") if isinstance(msg, dict) else getattr(msg, "content", None)
                             
                             if role == "tool" and "transaction_sequence" in str(content):
                                 import json
@@ -420,7 +426,7 @@ class GaiaLinkService:
             match = re.search(pattern, clean_message, re.IGNORECASE)
             if match:
                 name = match.group(1).strip()
-                # Remove common trailing artifacts like "提案", "project", "campaign"
+                # Remove common trailing artifacts like "提案", "project", "proposal", "campaign"
                 name = re.sub(r'(提案|project|proposal|campaign|的)$', '', name).strip()
                 # Remove amount/token artifacts
                 name = re.sub(r'(?:\s|^)\d+(\.\d+)?\s*(USDC|USDT|ETH|DAI).*$', '', name, flags=re.IGNORECASE).strip()
@@ -430,8 +436,8 @@ class GaiaLinkService:
         # 1.5. Check agent memory for executed tool arguments (Best Source)
         if hasattr(self.agent, "memory"):
              for msg in reversed(self.agent.memory.messages):
-                 role = getattr(msg, "role", None) or msg.get("role")
-                 content = getattr(msg, "content", None) or msg.get("content")
+                 role = msg.get("role") if isinstance(msg, dict) else getattr(msg, "role", None)
+                 content = msg.get("content") if isinstance(msg, dict) else getattr(msg, "content", None)
                  if role == "tool" and "execute_donation" in str(msg): # Check if tool name is available, otherwise content scan
                      # If we can parse the tool definition from memory it would be great, 
                      # but spoon memory might differ. 
@@ -492,7 +498,7 @@ class GaiaLinkService:
         # Match if it has (intent AND amount) OR structural indicators
         return (has_donation_intent and has_token_amount) or has_structural
 
-    async def _handle_tool_interception(self, tool_code: str) -> ChatResponse:
+    async def _handle_tool_interception(self, tool_code: str, user_address: str = None) -> ChatResponse:
         """
         Manually executes tools when the Agent returns a 'tool_code' string.
         """
@@ -673,11 +679,12 @@ class GaiaLinkService:
                     override_amount=override_amount,
                     override_token=override_token,
                     override_proposal_name=override_name,
-                    override_proposal_id=override_id
+                    override_proposal_id=override_id,
+                    user_address=user_address
                 )
             except Exception as e:
                 print(f"--- Service: Error parsing tool args: {e} ---")
-                return await self._prepare_donation_response(tool_code)
+                return await self._prepare_donation_response(tool_code, user_address=user_address)
 
         # Default fallback if tool code not recognized
         return ChatResponse(
@@ -690,7 +697,8 @@ class GaiaLinkService:
                                          override_amount: float = None, 
                                          override_token: str = None, 
                                          override_proposal_name: str = None,
-                                         override_proposal_id: str = None) -> ChatResponse:
+                                         override_proposal_id: str = None,
+                                         user_address: str = None) -> ChatResponse:
         """Shared helper to generate a standardized donation response with payload and button."""
         # Use overrides if provided, otherwise fallback to regex extraction
         amount = override_amount if override_amount is not None else self._extract_amount_from_message(text)
@@ -733,7 +741,8 @@ class GaiaLinkService:
             proposal_name=proposal_name,
             recipient_address=blockchain_config.addresses.proposal_manager,
             vault_type=vault_type, # Pass vault_type
-            action="APPROVE" if is_approval else "DEPOSIT"
+            action="APPROVE" if is_approval else "DEPOSIT",
+            user_address=user_address
         )
 
         # Update proposal_id if tool resolved it from name

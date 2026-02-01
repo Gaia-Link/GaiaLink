@@ -184,11 +184,11 @@ class ExecuteDonationTool(BaseTool):
             return self._blockchain_service
         return get_blockchain_service()
 
-    async def execute(self, amount: float, token: str, recipient_address: str = None, vault_type: str = "DIRECT", proposal_id: str = None, proposal_name: str = None, action: str = "DEPOSIT") -> dict:
+    async def execute(self, amount: float, token: str, recipient_address: str = None, vault_type: str = "DIRECT", proposal_id: str = None, proposal_name: str = None, action: str = "DEPOSIT", user_address: str = None) -> dict:
         """
         準備捐款交易 Payload
         """
-        print(f"--- Tool: Executing donation. ID: {proposal_id}, Name: {proposal_name}, Amount: {amount}, Action: {action} ---")
+        print(f"--- Tool: Executing donation. ID: {proposal_id}, Name: {proposal_name}, Amount: {amount}, Action: {action}, User: {user_address} ---")
         # 輸入驗證
         if amount <= 0:
             return self._build_error_response("Amount must be positive")
@@ -280,6 +280,85 @@ class ExecuteDonationTool(BaseTool):
             tx_value = "0"
             estimated_gas = 150000
             chain_id = blockchain_config.chain_id
+            
+            # AUTO-APPROVE Logic if user_address is known
+            print(f"--- Tool Debug: Checking Auto-Approve. User: {user_address}, Token: {token} ---")
+            if user_address and token != "ETH":
+                try:
+                    # Check allowance
+                    token_addr = blockchain_config.addresses.usdc_token or SEPOLIA_TOKEN_CONTRACTS.get(token)
+                    spender_addr = blockchain_config.addresses.proposal_manager
+                    
+                    print(f"--- Tool Debug: Token Addr: {token_addr}, Spender: {spender_addr} ---")
+
+                    # We need to call balanceOf / allowance. 
+                    # Assuming we can use web3 from blockchain_service
+                    service = self._get_service()
+                    if service.w3:
+                        print("--- Tool Debug: Web3 Service Available ---")
+                        from gaia_link.services.blockchain.config import ERC20_ABI
+                        contract = service.w3.eth.contract(address=token_addr, abi=ERC20_ABI)
+                        current_allowance = contract.functions.allowance(user_address, spender_addr).call()
+                        
+                        required_amount = int(amount * (10 ** 18)) # Using 18 decimals for Gaia
+                        
+                        print(f"--- Tool: Checking Allowance. User: {user_address}, Spender: {spender_addr}, Allowance: {current_allowance}, Required: {required_amount} ---")
+                        
+                        if current_allowance < required_amount:
+                            print(f"--- Tool: Insufficient Allowance! Preparing BATCH transaction (Approve + Deposit) ---")
+                            # Create Approval TX
+                            spender = spender_addr
+                            # Approve slightly more to avoid precision issues or max int
+                            approve_calldata = encode_erc20_approve(spender, amount * 1.1, decimals=18) 
+                            
+                            approve_payload = {
+                                "to": token_addr,
+                                "value": "0",
+                                "data": approve_calldata,
+                                "chainId": chain_id,
+                                "gas": "50000",
+                                "intent_summary": f"Approve Gaia Manager to spend {token} (Step 1/2)"
+                            }
+                            
+                            deposit_payload = {
+                                "to": tx_to,
+                                "value": tx_value,
+                                "data": calldata,
+                                "chainId": chain_id,
+                                "gas": str(estimated_gas),
+                                "intent_summary": f"Donate {amount} {token} (Step 2/2)"
+                            }
+                            
+                            return {
+                                "success": True,
+                                "status": "ready_to_sign",
+                                "action": "BATCH_TRANSACTION", # Custom action
+                                "transaction_payload": deposit_payload, # Main payload (fallback)
+                                "transaction_sequence": [approve_payload, deposit_payload], # Batch sequence
+                                "details": {
+                                    "amount": amount,
+                                    "token": token,
+                                    "vault_type": vault_type,
+                                    "proposal_id": proposal_id,
+                                    "proposal_name": proposal_name,
+                                    "location": proposal_location,
+                                    "recipient": tx_to,
+                                    "token_contract": token_addr,
+                                    "estimated_gas": estimated_gas + 50000
+                                },
+                                "message": f"I see you haven't approved donations yet. I've prepared a **2-step transaction sequence**:\n1. Approve {token} Spending\n2. Donate to Proposal #{proposal_id}\n\nPlease sign both transactions!"
+                            }
+                    else:
+                         print("--- Tool Debug: No Web3 Service found! ---")
+
+                except Exception as e:
+                    import traceback
+                    traceback.print_exc()
+                    print(f"--- Tool: details on allowance check failure: {e} ---")
+                    # pass # Fallback to normal single tx - Don't pass silently during debug!
+            else:
+                 print(f"--- Tool Debug: Skipping Allowance Check. User={user_address}, Token={token} ---")
+
         elif token == "ETH":
             # ETH 原生轉帳
             calldata = "0x"

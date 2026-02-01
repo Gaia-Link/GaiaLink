@@ -7,7 +7,7 @@ import DonationModal from '@/features/donation/components/DonationModal';
 import LivingGlobe from '@/features/globe/components/LivingGlobe';
 import { CrisisPoint } from '@/lib/mockData';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
-import RpcTester from '@/features/debug/RpcTester';
+
 import { useSendTransaction } from 'wagmi';
 import { History } from 'lucide-react';
 import UserPortfolioModal from '@/features/portfolio/UserPortfolioModal';
@@ -117,7 +117,7 @@ export default function Home() {
           <ConnectButton showBalance={false} />
         </div>
 
-        <RpcTester />
+
       </div>
 
       {/* 3. Interaction Components */}
