@@ -31,10 +31,10 @@ Gaia Link 透過以下四大核心特性，重新定義人道救援的協作方�
 
 | 顏色 | 含義 | 說明 |
 |------|------|------|
-| 🟡 **黃色** | 已部署 Vault (機構或社群提案已達標) | 資金池已啟動，可直接捐款 |
-| 🔴 **紅色** | 提案進行中 (尚未達標) | 正在募資，達標後將開啟 Vault |
-| 🟣 **紫色** | 新聞/待驗證事件 | 來自 `backend_data` 的危機報導，可發起新提案 |
-| 🔵 **藍色** | 機構節點/其他 | 白名單機構或輔助資訊點 |
+| � **紅色** | 高優先級 Vault (已部署) | 核心救援行動，資源極度匱乏 |
+| � **黃色** | 中優先級 Vault (已部署) | 重點救援行動，需要持續支持 |
+| � **藍色** | 一般優先級 Vault (已部署) | 常規救援行動，資源缺口較小 |
+| � **紫色** | 待建庫/新聞事件 (未部署) | 來自新聞或待驗證的提案，可發起社群募集 |
 
 使用者只需旋轉地球，即可清晰看到哪些地方點點特別密集（缺乏資源），哪些地方已獲得充分支援。
 
@@ -76,14 +76,14 @@ graph TB
     subgraph Layer2["🌐 第二層：社群提案 Vault (無需許可)"]
         Anyone[任何人]
         Proposal[社群提案<br/>指定地區/災情]
-        Threshold{達標?}
-        Deploy[自動部署 Vault]
-        Refund[自動退款]
+        Execution{機構執行?}
+        Deploy[部署 Vault]
+        Inactive[保持提案狀態]
         
         Anyone -->|創建提案| Proposal
-        Proposal -->|募資| Threshold
-        Threshold -->|✅ 達到目標| Deploy
-        Threshold -->|❌ 未達標| Refund
+        Proposal -->|募資| Execution
+        Execution -->|✅ 機構確認| Deploy
+        Execution -->|⏳ 等待中| Inactive
         Deploy -->|受益方| Institution
     end
     
@@ -103,10 +103,10 @@ graph TB
 
 #### 第二層：社群提案 Vault（無需許可）
 - **誰能開啟**：任何人都可以發起提案，針對特定地區、災情創建募資計劃
-- **達標機制**：
-  - 提案需要達到預設的最低募資目標（如 1000 USDC）
-  - 達標後，系統自動部署 Vault 並將資金轉入
-  - 未達標則自動退款給所有貢獻者
+- **啟動機制（無需門檻）**：
+  - 提案創建後即可對外募資
+  - **由白名單機構執行**：一旦被指定的受益機構認可並「執行（Activate）」，系統才會部署 Vault 並將資金轉入
+  - 是否開啟 Vault 取決於機構的操作，無硬性資金門檻
 - **資金流向**：提案創建者必須指定白名單機構作為受益方，資金最終仍流向可信地址
 - **適用場景**：緊急、小型、或被主流機構忽視的救援需求
 
@@ -173,8 +173,8 @@ graph TB
     YieldProtocol[Yield Protocols<br/>Euler/Pendle/Aave]
     
     ProposalMgr -->|驗證機構| Registry
-    ProposalMgr -->|達標後部署| DirectV
-    ProposalMgr -->|達標後部署| NoLossV
+    ProposalMgr -->|機構激活後部署| DirectV
+    ProposalMgr -->|機構激活後部署| NoLossV
     Registry -->|授權創建| DirectV
     Registry -->|授權創建| NoLossV
     NoLossV -->|整合| YieldProtocol
@@ -191,11 +191,10 @@ graph TB
 ```mermaid
 stateDiagram-v2
     [*] --> 創建提案: 任何人發起
-    創建提案 --> 募資中: 設定目標
-    募資中 --> 已達標: 達到最低目標
-    募資中 --> 已取消: 未達標/超時
-    已達標 --> Vault已部署: 自動激活
-    已取消 --> [*]: 自動退款
+    創建提案 --> 募資中
+    募資中 --> 機構中心審核: 資金持續匯入
+    機構中心審核 --> Vault已部署: ✅ 機構執行(Activate)
+    機構中心審核 --> 募資中: ⏳ 繼續等待資金或審核
     Vault已部署 --> 資金分配: 機構提取
     資金分配 --> [*]: 完成
 ```
