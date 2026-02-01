@@ -57,14 +57,14 @@ export default function LandingOverlay({ onLaunch, onSectionChange }: LandingOve
                         <div className="flex justify-center mb-8">
                             <div className="h-px w-24 bg-gradient-to-r from-transparent via-blue-500 to-transparent"></div>
                         </div>
-                        <div className="overflow-hidden mb-8">
+                        <div className="overflow-hidden mb-8 flex justify-center">
                             <motion.p
                                 initial={{ y: "100%" }}
                                 animate={{ y: 0 }}
                                 transition={{ delay: 0.5, duration: 0.8, ease: "circOut" }}
-                                className="text-xl md:text-2xl font-mono text-blue-200/80"
+                                className="text-xl md:text-3xl font-mono text-white drop-shadow-xl leading-relaxed"
                             >
-                                "The First Intent-Centric Spatial OS for Humanitarian Aid."
+                                The First <span className="text-blue-400 font-bold">Intent-Centric</span> Spatial OS <br className="hidden md:block" /> for Humanitarian Aid.
                             </motion.p>
                         </div>
 

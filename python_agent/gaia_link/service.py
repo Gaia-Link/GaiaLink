@@ -11,6 +11,7 @@ Handles:
 import os
 import json
 import re
+import ast
 from typing import Dict, Any, Optional
 from pydantic import BaseModel
 
@@ -123,6 +124,88 @@ class GaiaLinkService:
             if is_donation_intent:
                 print(f"--- Service: Preparing donation response (Action: {action_taken}) ---")
                 
+                # OPTIMIZATION: Check Agent Memory for ALREADY EXECUTED donation tool results.
+                # If the agent just ran 'execute_donation' and succeeded, we should reuse that payload
+                # instead of trying to re-parse the name and execute again (which risks regex failure).
+                if hasattr(self.agent, "memory"):
+                    try:
+                        # Iterate backwards looking for the most recent tool execution
+                        for i, msg in enumerate(reversed(self.agent.memory.messages)):
+                            # Safe property access for both Dict and Object
+                            if isinstance(msg, dict):
+                                role = msg.get("role")
+                                content = msg.get("content")
+                                tool_name = msg.get("tool_name") or msg.get("name")
+                            else:
+                                role = getattr(msg, "role", None)
+                                content = getattr(msg, "content", None)
+                                tool_name = getattr(msg, "tool_name", None) or getattr(msg, "name", None)
+                            
+                            # Log what we are scanning to debug
+                            print(f"--- Service: Scanning msg [{i}] role={role}, tool={tool_name}, has_payload={'transaction_payload' in str(content)} ---") 
+                            
+                            # Robust check: role is tool AND (name is execute_donation OR content has payload)
+                            is_tool = (role == "tool")
+                            is_donation_tool = "execute_donation" in str(tool_name)
+                            has_payload = "transaction_payload" in str(content)
+
+                            if is_tool and (is_donation_tool or has_payload):
+                                import json
+                                try:
+                                    if isinstance(content, dict):
+                                        tool_output = content
+                                    str_content = str(content)
+                                    # print(f"--- Service Debug: Parsing content: {str_content[:50]}... ---")
+                                    
+                                    # Extract substring between first { and last }
+                                    start_idx = str_content.find('{')
+                                    end_idx = str_content.rfind('}')
+                                    
+                                    parsed_output = None
+                                    
+                                    if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+                                        json_str = str_content[start_idx:end_idx+1]
+                                        try:
+                                            parsed_output = json.loads(json_str)
+                                        except json.JSONDecodeError:
+                                            try:
+                                                import ast
+                                                parsed_output = ast.literal_eval(json_str)
+                                            except:
+                                                pass
+                                    
+                                    # Fallback: try parsing whole string if extraction failed or didn't work
+                                    if not parsed_output:
+                                        try:
+                                            parsed_output = json.loads(str_content)
+                                        except:
+                                            try:
+                                                import ast
+                                                parsed_output = ast.literal_eval(str_content)
+                                            except:
+                                                pass
+
+                                    if isinstance(parsed_output, dict) and parsed_output.get("success") and parsed_output.get("transaction_payload"):
+                                        print("--- Service: Reusing EXISTING donation payload from Agent Step ---")
+                                        return ChatResponse(
+                                            message=data.get("message", response_text),
+                                            action_taken="execute_donation",
+                                            ui_hints=data.get("ui_hints", {
+                                                "mode": "DECISION", 
+                                                "actions": [{
+                                                    "label": "Sign Donation", 
+                                                    "type": "sign_transaction", 
+                                                    "icon": "pen-tool"
+                                                }]
+                                            }),
+                                            transaction_payload=parsed_output.get("transaction_payload"),
+                                            transaction_sequence=parsed_output.get("transaction_sequence") # If batch
+                                        )
+                                except Exception as e:
+                                    print(f"--- Service: Failed to reuse tool payload: {e} ---")
+                    except Exception as e:
+                        print(f"--- Service: Memory check failed: {e} ---")
+
                 # IMPROVEMENT: Try to extract as much metadata as possible from the agent turn result
                 # to avoid relying solely on flaky regex fallbacks.
                 agent_msg = data.get("message", response_text)
@@ -151,69 +234,69 @@ class GaiaLinkService:
             if is_withdrawal:
                 # Scan memory for the tool output to retrieve transaction_sequence
                 if hasattr(self.agent, "memory"):
-                     # Try to find the latest tool message from 'withdraw_contribution'
-                     # Access internal memory storage (depends on SpoonReactAI impl)
-                     # Usually agent.memory.messages is a list of {"role":..., "content":...}
-                     # "content" for tool role is the output string.
-                     # We need to parse that string if it's JSON.
-                     
-                     try:
-                         # Iterate backwards
-                         for msg in reversed(self.agent.memory.messages):
-                             # Robust access for role and content (Object or Dict)
-                             role = getattr(msg, "role", None) or msg.get("role")
-                             content = getattr(msg, "content", None) or msg.get("content")
-                             
-                             if role == "tool" and "transaction_sequence" in str(content):
-                                 import json
-                                 try:
-                                     # Tool output is a stringified JSON
-                                     tool_output = json.loads(content)
-                                     if "transaction_sequence" in tool_output:
-                                         print("--- Service: Found withdrawal payload in memory, injecting into UI ---")
-                                         transaction_payload = tool_output.get("transaction_payload") # For single
-                                         tx_sequence = tool_output.get("transaction_sequence") # For batch
-                                         
-                                         # Construct UI hints
-                                         ui_hints["mode"] = "SIGNATURE" # Or DECISION
-                                         ui_hints["actions"] = [{
-                                             "label": "Sign Withdrawal Transactions", 
-                                             "type": "sign_transaction", 
-                                             "icon": "download"
-                                         }]
-                                         
-                                         # Pass sequence as payload to frontend (frontend supports checking sequence)
-                                         # If sequence exists, we put it in transaction_sequence (frontend logic: if sequence, use it)
-                                         # Typically frontend expects `transaction_payload` for single, but we can pass sequence list.
-                                         # Let's attach it to `transaction_payload` as a special 'sequence' wrapper or just rely on SpoonOSInterface to support `txSequence`
-                                         # SpoonOSInterface lines 34: `const [txSequence, setTxSequence] = useState<any[]>([]);`
-                                         
-                                         # We need to figure out how to pass 'txSequence' to frontend.
-                                         # ChatResponse has 'transaction_payload'.
-                                         # If we pass a LIST to transaction_payload, frontend might break if it expects object.
-                                         # However, SpoonOSInterface handles `activePayload` via `txSequence`.
-                                         # We need to signal frontend to set txSequence.
-                                         # Let's wrap it? 
-                                         # Checked SpoonOSInterface: it doesn't seem to parse `transaction_payload` as a sequence automatically unless specific trigger.
-                                         # Wait, I checked SpoonOSInterface earlier. 
-                                         # Line 220: `response: response`
-                                         # Maybe I need to update SpoonOSInterface to handle `transaction_sequence` in response.
-                                         
-                                         # For now, let's inject it into `ui_hints` strictly.
-                                         # ui_hints["transaction_sequence"] = tx_sequence
-                                         
-                                         # Better: Capture it for the top-level response
-                                         tx_sequence_list = tx_sequence
-                                         
-                                         # Also set transaction_payload to first item for safety?
-                                         if tx_sequence:
-                                             transaction_payload = tx_sequence[0] 
-                                         
-                                         break
-                                 except Exception as e:
-                                     print(f"--- Service: Failed to parse tool output: {e} ---")
-                     except Exception as e:
-                         print(f"--- Service: Failed to scan memory: {e} ---")
+                    # Try to find the latest tool message from 'withdraw_contribution'
+                    # Access internal memory storage (depends on SpoonReactAI impl)
+                    # Usually agent.memory.messages is a list of {"role":..., "content":...}
+                    # "content" for tool role is the output string.
+                    # We need to parse that string if it's JSON.
+                    
+                    try:
+                        # Iterate backwards
+                        for msg in reversed(self.agent.memory.messages):
+                            # Robust access for role and content (Object or Dict)
+                            role = getattr(msg, "role", None) or msg.get("role")
+                            content = getattr(msg, "content", None) or msg.get("content")
+                            
+                            if role == "tool" and "transaction_sequence" in str(content):
+                                import json
+                                try:
+                                    # Tool output is a stringified JSON
+                                    tool_output = json.loads(content)
+                                    if "transaction_sequence" in tool_output:
+                                        print("--- Service: Found withdrawal payload in memory, injecting into UI ---")
+                                        transaction_payload = tool_output.get("transaction_payload") # For single
+                                        tx_sequence = tool_output.get("transaction_sequence") # For batch
+                                        
+                                        # Construct UI hints
+                                        ui_hints["mode"] = "SIGNATURE" # Or DECISION
+                                        ui_hints["actions"] = [{
+                                            "label": "Sign Withdrawal Transactions", 
+                                            "type": "sign_transaction", 
+                                            "icon": "download"
+                                        }]
+                                        
+                                        # Pass sequence as payload to frontend (frontend supports checking sequence)
+                                        # If sequence exists, we put it in transaction_sequence (frontend logic: if sequence, use it)
+                                        # Typically frontend expects `transaction_payload` for single, but we can pass sequence list.
+                                        # Let's attach it to `transaction_payload` as a special 'sequence' wrapper or just rely on SpoonOSInterface to support `txSequence`
+                                        # SpoonOSInterface lines 34: `const [txSequence, setTxSequence] = useState<any[]>([]);`
+                                        
+                                        # We need to figure out how to pass 'txSequence' to frontend.
+                                        # ChatResponse has 'transaction_payload'.
+                                        # If we pass a LIST to transaction_payload, frontend might break if it expects object.
+                                        # However, SpoonOSInterface handles `activePayload` via `txSequence`.
+                                        # We need to signal frontend to set txSequence.
+                                        # Let's wrap it? 
+                                        # Checked SpoonOSInterface: it doesn't seem to parse `transaction_payload` as a sequence automatically unless specific trigger.
+                                        # Wait, I checked SpoonOSInterface earlier. 
+                                        # Line 220: `response: response`
+                                        # Maybe I need to update SpoonOSInterface to handle `transaction_sequence` in response.
+                                        
+                                        # For now, let's inject it into `ui_hints` strictly.
+                                        # ui_hints["transaction_sequence"] = tx_sequence
+                                        
+                                        # Better: Capture it for the top-level response
+                                        tx_sequence_list = tx_sequence
+                                        
+                                        # Also set transaction_payload to first item for safety?
+                                        if tx_sequence:
+                                            transaction_payload = tx_sequence[0] 
+                                        
+                                        break
+                                except Exception as e:
+                                    print(f"--- Service: Failed to parse tool output: {e} ---")
+                    except Exception as e:
+                        print(f"--- Service: Failed to scan memory: {e} ---")
 
             # 5. Standard Response
             return ChatResponse(
@@ -320,6 +403,16 @@ class GaiaLinkService:
             r'(.*?)\s*(?:的)?幫我',
             r'向\s*(.+?)\s*(?:直接|捐)',
             r'^(.+?)(?=\s*(?:我要|我想|I want).*(?:捐|donate))',
+            # -- Fuzzy / Natural Language Expansion --
+            r'support\s+(.+)',
+            r'help\s+(.+)',
+            r'fund\s+(.+)',
+            r'支持\s+(.+)',
+            r'援助\s+(.+)',
+            r'救助\s+(.+)',
+            r'^(?:I want to|I\'d like to)\s+(?:give|send|transfer)\s+(?:funds?|money|crypto|usdc)\s+to\s+(.+)',
+            # Implicit: "Turkey 100" (Be careful with this one, verify via length or known entities ideally, but enabling for fuzzy feel)
+            r'^([A-Z][a-zA-Z\s]+?)\s+\d+(?:\.\d+)?',
         ]
         
         # 1. Try to extract from User Message
@@ -333,6 +426,31 @@ class GaiaLinkService:
                 name = re.sub(r'(?:\s|^)\d+(\.\d+)?\s*(USDC|USDT|ETH|DAI).*$', '', name, flags=re.IGNORECASE).strip()
                 name = re.sub(r'\s+(directly|now|immediately)$', '', name, flags=re.IGNORECASE).strip()
                 if name and len(name) > 2: return name
+
+        # 1.5. Check agent memory for executed tool arguments (Best Source)
+        if hasattr(self.agent, "memory"):
+             for msg in reversed(self.agent.memory.messages):
+                 role = getattr(msg, "role", None) or msg.get("role")
+                 content = getattr(msg, "content", None) or msg.get("content")
+                 if role == "tool" and "execute_donation" in str(msg): # Check if tool name is available, otherwise content scan
+                     # If we can parse the tool definition from memory it would be great, 
+                     # but spoon memory might differ. 
+                     # Let's rely on regex cleanup first as it's safer than complex memory parsing.
+                     pass
+
+        # 2. Fallback: Parse from Agent Response (if available in message)
+        # message is "User Text | Agent Text"
+        parts = message.split('|')
+        if len(parts) > 1:
+            agent_text = parts[1].strip()
+            # Look for quoted name in agent response: 「Name」 or "Name"
+            # Matches: 「Herat Afghanistan Earthquake」
+            quote_match = re.search(r'[「"“](.+?)[」"”]', agent_text)
+            if quote_match:
+                print(f"--- Service: Recovered proposal name from agent response: {quote_match.group(1)} ---")
+                return quote_match.group(1)
+        
+        return None
 
         # 2. Fallback: Parse from Agent Response (if available in message)
         # message is "User Text | Agent Text"
@@ -364,7 +482,11 @@ class GaiaLinkService:
         
         # Exclude history/listing context - CRITICAL FIX
         # If the text explicitly mentions "records", "history", "list", "past", "total", ignore donation keywords
-        if re.search(r'history|record|list|past|total|amount donated|紀錄|記錄|清單|查詢|總額|總計|捐款過', text, re.IGNORECASE):
+        # BUT be careful: Agent often says "Ask me about records" after a successful donation.
+        # So we only exclude if we DO NOT find strong donation signals like "ready to sign", "prepared", "transaction".
+        is_transaction_ready = bool(re.search(r'ready|prepared|transaction|sign|簽署|準備好|交易', text, re.IGNORECASE))
+        
+        if not is_transaction_ready and re.search(r'history|record|list|past|total|amount donated|捐款過|清單|總額|總計|歷史', text, re.IGNORECASE):
              return False
 
         # Match if it has (intent AND amount) OR structural indicators
@@ -516,21 +638,35 @@ class GaiaLinkService:
             
         elif "execute_donation" in tool_code:
             # Parse parameters from tool code string like: execute_donation(amount=100, token='USDC', ...)
-            # This is much more robust than regex on the message
             try:
-                # Extract args using regex on the code string
-                # Note: This is a simple parser for named args. 
-                amount_match = re.search(r"amount=['\"]?(\d+(?:\.\d+)?)['\"]?", tool_code)
-                token_match = re.search(r"token=['\"](\w+)['\"]", tool_code)
-                name_match = re.search(r"proposal_name=['\"](.*?)['\"]", tool_code)
-                id_match = re.search(r"proposal_id=['\"](\d+)['\"]", tool_code)
+                # 1. Try Safe AST Parsing First (Robust)
+                parsed_args = self._parse_tool_code_safe(tool_code)
                 
-                override_amount = float(amount_match.group(1)) if amount_match else None
-                override_token = token_match.group(1) if token_match else None
-                override_name = name_match.group(1) if name_match else None
-                override_id = id_match.group(1) if id_match else None
+                override_amount = None
+                override_token = None
+                override_name = None
+                override_id = None
+
+                if parsed_args:
+                    override_amount = float(parsed_args.get("amount", 0)) if parsed_args.get("amount") else None
+                    override_token = parsed_args.get("token")
+                    override_name = parsed_args.get("proposal_name")
+                    override_id = str(parsed_args.get("proposal_id")) if parsed_args.get("proposal_id") else None
+                    
+                    print(f"--- Service: AST Parsed Args - Name: {override_name}, ID: {override_id}, Amount: {override_amount} ---")
                 
-                print(f"--- Service: Parsed Tool Args - Name: {override_name}, ID: {override_id}, Amount: {override_amount} ---")
+                else: 
+                     # 2. Fallback to Regex (Fragile but permissive)
+                    print("--- Service: AST failed, falling back to Regex ---")
+                    amount_match = re.search(r"amount=['\"]?(\d+(?:\.\d+)?)['\"]?", tool_code)
+                    token_match = re.search(r"token=['\"](\w+)['\"]", tool_code)
+                    name_match = re.search(r"proposal_name=['\"](.*?)['\"]", tool_code)
+                    id_match = re.search(r"proposal_id=['\"](\d+)['\"]", tool_code)
+                    
+                    override_amount = float(amount_match.group(1)) if amount_match else None
+                    override_token = token_match.group(1) if token_match else None
+                    override_name = name_match.group(1) if name_match else None
+                    override_id = id_match.group(1) if id_match else None
                 
                 return await self._prepare_donation_response(
                     tool_code, 
@@ -540,7 +676,7 @@ class GaiaLinkService:
                     override_proposal_id=override_id
                 )
             except Exception as e:
-                print(f"--- Service: Error parsing tool args, falling back to regex: {e} ---")
+                print(f"--- Service: Error parsing tool args: {e} ---")
                 return await self._prepare_donation_response(tool_code)
 
         # Default fallback if tool code not recognized

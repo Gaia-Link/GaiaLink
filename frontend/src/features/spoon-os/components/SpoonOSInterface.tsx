@@ -408,9 +408,27 @@ export default function SpoonOSInterface({ isOpen, onClose, selectedPoint, onAct
                                                 )}
 
                                                 {(() => {
-                                                    const actionableMsg = messages.slice().reverse().find(m => m.response?.ui_hints?.actions?.some((a: any) => a.type === 'sign_transaction'));
-                                                    const actions = actionableMsg?.response?.ui_hints.actions || [];
-                                                    const resp = actionableMsg?.response;
+                                                    // Find the message that triggered the transactions (Payload, Sequence, or explicit Action)
+                                                    const txMsg = messages.slice().reverse().find(m =>
+                                                        m.response?.transaction_payload ||
+                                                        m.response?.transaction_sequence ||
+                                                        m.response?.ui_hints?.actions?.some((a: any) => a.type === 'sign_transaction')
+                                                    );
+
+                                                    const resp = txMsg?.response;
+                                                    let actions = resp?.ui_hints?.actions || [];
+
+                                                    // If we have a payload/sequence but no explicit "sign_transaction" action, create a default one
+                                                    const hasSignAction = actions.some((a: any) => a.type === 'sign_transaction');
+                                                    if (!hasSignAction && (resp?.transaction_payload || resp?.transaction_sequence)) {
+                                                        const defaultAction = {
+                                                            label: "Sign Transaction",
+                                                            type: "sign_transaction",
+                                                            icon: "pen-tool"
+                                                        };
+                                                        // Ensure we don't duplicate if actions is empty array
+                                                        actions = [...actions, defaultAction];
+                                                    }
 
                                                     return actions.map((action: any, idx: number) => (
                                                         <button
