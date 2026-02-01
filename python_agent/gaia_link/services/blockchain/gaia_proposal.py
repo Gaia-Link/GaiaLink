@@ -388,6 +388,41 @@ class GaiaProposalService(ProposalService):
             logger.error("[ERROR] Failed to get contribution: %s", e)
             return None
 
+    async def get_user_portfolio(self, user_address: str) -> List[ContributionInfo]:
+        """
+        Get all contributions for a user using the contract's batch query.
+        Returns a list of ContributionInfo with non-zero balances.
+        """
+        try:
+            address = self._provider.web3.to_checksum_address(user_address)
+            # Call calling getUserPortfolio(address) -> PortfolioItem[]
+            portfolio_items = self._contract.functions.getUserPortfolio(address).call()
+            
+            results = []
+            for item in portfolio_items:
+                # item is a struct/tuple: (proposalId, directAmount, noLossAmount)
+                # Web3.py usually returns tuples for structs unless configured otherwise
+                proposal_id = item[0]
+                direct_amt = item[1]
+                no_loss_amt = item[2]
+                
+                total_wei = direct_amt + no_loss_amt
+                if total_wei > 0:
+                    results.append(ContributionInfo(
+                        contribution_id=f"{proposal_id}_{user_address}",
+                        proposal_id=str(proposal_id),
+                        contributor_address=user_address,
+                        amount=total_wei / 1e18,
+                        contributed_at=datetime.now(), 
+                        is_no_loss=(no_loss_amt > 0)
+                    ))
+            return results
+            
+        except Exception as e:
+            logger.error("[ERROR] Failed to get user portfolio: %s", e)
+            # Fallback to empty list or re-raise depending on strictness
+            return []
+
 
 # ============================================================================
 # Global Service Singleton

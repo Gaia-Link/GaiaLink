@@ -53,7 +53,7 @@ class GaiaLinkService:
         """Check if error is the OpenAI tool_call_id mismatch error."""
         return "tool_call_ids did not have response messages" in error_msg
 
-    async def process_message(self, message: str) -> ChatResponse:
+    async def process_message(self, message: str, context_data: Dict[str, Any] = None) -> ChatResponse:
         """
         Process a user message through the agent and handle any tool execution requirements.
         """
@@ -64,7 +64,15 @@ class GaiaLinkService:
             # Memory is only reset when tool_call_id errors occur (in error handler below).
 
             # 1. Run the Agent
-            response_text = await self.agent.run(message)
+            # Inject Context into Message if present
+            user_context_info = ""
+            if "user_address" in context_data and context_data["user_address"]:
+                user_context_info += f"\n[System Context] User Wallet Address: {context_data['user_address']}"
+            
+            full_message = message + user_context_info
+            
+            print(f"--- Service: Sending message with context: '{full_message}' ---")
+            response_text = await self.agent.run(full_message)
             print(f"--- Service: Raw Agent Response ---\n{response_text}\n-------------------------------")
             
             # 2. Parse JSON Response
@@ -78,6 +86,7 @@ class GaiaLinkService:
             action_taken = data.get("action_taken", "chat")
             transaction_payload = data.get("transaction_payload")
             ui_hints = data.get("ui_hints", {"mode": "IDLE", "actions": []})
+            tx_sequence_list = None
 
             # AUTO-NAVIGATION Fallback: Detect coords in response text
             has_move_intent = any(kw in message.lower() for kw in ["轉移", "定位", "center", "move", "focus", "聚焦", "正中央", "導航", "navigate"])
@@ -117,20 +126,84 @@ class GaiaLinkService:
                 combined_text = f"{message} | {data.get('message', response_text)}"
                 return await self._prepare_donation_response(combined_text)
 
-            # 5. Standard Response
-            return ChatResponse(
-                message=data.get("message", response_text),
-                action_taken=action_taken,
-                ui_hints=ui_hints,
-                transaction_payload=transaction_payload
-            )
+            # 4.5 Detect Withdrawal Response (Fix for missing blue button)
+            # Check if agent mentioned "提取", "withdraw" and "successfully" or "found"
+            is_withdrawal = "withdraw" in response_text.lower() or "提取" in response_text
+            
+            if is_withdrawal:
+                # Scan memory for the tool output to retrieve transaction_sequence
+                if hasattr(self.agent, "memory"):
+                     # Try to find the latest tool message from 'withdraw_contribution'
+                     # Access internal memory storage (depends on SpoonReactAI impl)
+                     # Usually agent.memory.messages is a list of {"role":..., "content":...}
+                     # "content" for tool role is the output string.
+                     # We need to parse that string if it's JSON.
+                     
+                     try:
+                         # Iterate backwards
+                         for msg in reversed(self.agent.memory.messages):
+                             # Robust access for role and content (Object or Dict)
+                             role = getattr(msg, "role", None) or msg.get("role")
+                             content = getattr(msg, "content", None) or msg.get("content")
+                             
+                             if role == "tool" and "transaction_sequence" in str(content):
+                                 import json
+                                 try:
+                                     # Tool output is a stringified JSON
+                                     tool_output = json.loads(content)
+                                     if "transaction_sequence" in tool_output:
+                                         print("--- Service: Found withdrawal payload in memory, injecting into UI ---")
+                                         transaction_payload = tool_output.get("transaction_payload") # For single
+                                         tx_sequence = tool_output.get("transaction_sequence") # For batch
+                                         
+                                         # Construct UI hints
+                                         ui_hints["mode"] = "SIGNATURE" # Or DECISION
+                                         ui_hints["actions"] = [{
+                                             "label": "Sign Withdrawal Transactions", 
+                                             "type": "sign_transaction", 
+                                             "icon": "download"
+                                         }]
+                                         
+                                         # Pass sequence as payload to frontend (frontend supports checking sequence)
+                                         # If sequence exists, we put it in transaction_sequence (frontend logic: if sequence, use it)
+                                         # Typically frontend expects `transaction_payload` for single, but we can pass sequence list.
+                                         # Let's attach it to `transaction_payload` as a special 'sequence' wrapper or just rely on SpoonOSInterface to support `txSequence`
+                                         # SpoonOSInterface lines 34: `const [txSequence, setTxSequence] = useState<any[]>([]);`
+                                         
+                                         # We need to figure out how to pass 'txSequence' to frontend.
+                                         # ChatResponse has 'transaction_payload'.
+                                         # If we pass a LIST to transaction_payload, frontend might break if it expects object.
+                                         # However, SpoonOSInterface handles `activePayload` via `txSequence`.
+                                         # We need to signal frontend to set txSequence.
+                                         # Let's wrap it? 
+                                         # Checked SpoonOSInterface: it doesn't seem to parse `transaction_payload` as a sequence automatically unless specific trigger.
+                                         # Wait, I checked SpoonOSInterface earlier. 
+                                         # Line 220: `response: response`
+                                         # Maybe I need to update SpoonOSInterface to handle `transaction_sequence` in response.
+                                         
+                                         # For now, let's inject it into `ui_hints` strictly.
+                                         # ui_hints["transaction_sequence"] = tx_sequence
+                                         
+                                         # Better: Capture it for the top-level response
+                                         tx_sequence_list = tx_sequence
+                                         
+                                         # Also set transaction_payload to first item for safety?
+                                         if tx_sequence:
+                                             transaction_payload = tx_sequence[0] 
+                                         
+                                         break
+                                 except Exception as e:
+                                     print(f"--- Service: Failed to parse tool output: {e} ---")
+                     except Exception as e:
+                         print(f"--- Service: Failed to scan memory: {e} ---")
 
             # 5. Standard Response
             return ChatResponse(
                 message=data.get("message", response_text),
                 action_taken=action_taken,
                 ui_hints=ui_hints,
-                transaction_payload=transaction_payload
+                transaction_payload=transaction_payload,
+                transaction_sequence=tx_sequence_list
             )
 
         except Exception as e:
@@ -211,21 +284,33 @@ class GaiaLinkService:
 
     def _extract_proposal_name_from_message(self, message: str) -> Optional[str]:
         """Extract proposal name from message text for direct donation"""
+        # CRITICAL: Split by '|' to ensure we only analyze the user's message, not the agent's appended response
+        # which creates a "combined_text" in process_message.
+        # This prevents "Donate to Gaza | I will..." from being captured as "Gaza | I will..."
+        clean_message = message.split('|')[0].strip()
+        
         # Look for phrases like "向 [Name] 捐款", "donate to [Name]"
         patterns = [
             r'(?:向|給)\s*([^直接\s]+(?: [^直接\s]+)*)\s*(?:直接)?(?:捐款|捐贈|捐)',
-            r'donate to\s*(.+?)\s*(?:directly|now|1|usdc|usdt|eth|dai|$)',
+            r'donate(?:ing)?\s+(?:(?:\d+(?:\.\d+)?)\s*(?:USDC|USDT|ETH|DAI|tokens?)?\s+)?to\s+(.+)',
+            r'donate\s+to\s+(.+?)(?:\s+(?:directly|now|1|usdc|usdt|eth|dai)|$)',
+            r'給\s*(.+?)\s*捐款',
             r'幫助\s*(.+)',
+            r'^(.+?)(?:提案|project|proposal)\s*(?:我要|我想|I want|allows)', 
             r'(.*?)\s*(?:的)?幫我',
             # Fallback: anything between '向' and '直接' or '捐'
             r'向\s*(.+?)\s*(?:直接|捐)',
+            r'^(.+?)(?=\s*(?:我要|我想|I want).*(?:捐|donate))',
         ]
         for pattern in patterns:
-            match = re.search(pattern, message, re.IGNORECASE)
+            match = re.search(pattern, clean_message, re.IGNORECASE)
             if match:
                 name = match.group(1).strip()
-                # Remove artifacts like 1 USDC if caught
-                name = re.sub(r'\d+(\.\d+)?\s*(USDC|USDT|ETH|DAI).*', '', name, flags=re.IGNORECASE).strip()
+                # Remove artifacts like 1 USDC if caught at the end
+                name = re.sub(r'(?:\s|^)\d+(\.\d+)?\s*(USDC|USDT|ETH|DAI).*$', '', name, flags=re.IGNORECASE).strip()
+                # Remove "directly" or "now" if caught
+                name = re.sub(r'\s+(directly|now|immediately)$', '', name, flags=re.IGNORECASE).strip()
+                
                 if name and len(name) > 2: return name
         return None
 
@@ -391,7 +476,33 @@ class GaiaLinkService:
             )
             
         elif "execute_donation" in tool_code:
-            return await self._prepare_donation_response(tool_code)
+            # Parse parameters from tool code string like: execute_donation(amount=100, token='USDC', ...)
+            # This is much more robust than regex on the message
+            try:
+                # Extract args using regex on the code string
+                # Note: This is a simple parser for named args. 
+                amount_match = re.search(r"amount=['\"]?(\d+(?:\.\d+)?)['\"]?", tool_code)
+                token_match = re.search(r"token=['\"](\w+)['\"]", tool_code)
+                name_match = re.search(r"proposal_name=['\"](.*?)['\"]", tool_code)
+                id_match = re.search(r"proposal_id=['\"](\d+)['\"]", tool_code)
+                
+                override_amount = float(amount_match.group(1)) if amount_match else None
+                override_token = token_match.group(1) if token_match else None
+                override_name = name_match.group(1) if name_match else None
+                override_id = id_match.group(1) if id_match else None
+                
+                print(f"--- Service: Parsed Tool Args - Name: {override_name}, ID: {override_id}, Amount: {override_amount} ---")
+                
+                return await self._prepare_donation_response(
+                    tool_code, 
+                    override_amount=override_amount,
+                    override_token=override_token,
+                    override_proposal_name=override_name,
+                    override_proposal_id=override_id
+                )
+            except Exception as e:
+                print(f"--- Service: Error parsing tool args, falling back to regex: {e} ---")
+                return await self._prepare_donation_response(tool_code)
 
         # Default fallback if tool code not recognized
         return ChatResponse(
@@ -400,12 +511,19 @@ class GaiaLinkService:
             ui_hints={"mode": "THINKING", "actions": []}
         )
 
-    async def _prepare_donation_response(self, text: str) -> ChatResponse:
+    async def _prepare_donation_response(self, text: str, 
+                                         override_amount: float = None, 
+                                         override_token: str = None, 
+                                         override_proposal_name: str = None,
+                                         override_proposal_id: str = None) -> ChatResponse:
         """Shared helper to generate a standardized donation response with payload and button."""
-        amount = self._extract_amount_from_message(text)
-        token = self._extract_token_from_message(text)
-        proposal_id = self._extract_proposal_id_from_message(text)
-        proposal_name = self._extract_proposal_name_from_message(text)
+        # Use overrides if provided, otherwise fallback to regex extraction
+        amount = override_amount if override_amount is not None else self._extract_amount_from_message(text)
+        token = override_token if override_token else self._extract_token_from_message(text)
+        
+        # ID/Name logic: Override > Regex
+        proposal_id = override_proposal_id if override_proposal_id else self._extract_proposal_id_from_message(text)
+        proposal_name = override_proposal_name if override_proposal_name else self._extract_proposal_name_from_message(text)
 
         # Handle 'random' donation request if ID/Name are missing
         if not proposal_id and not proposal_name and any(kw in text.lower() for kw in ["隨機", "random", "any", "選一個"]):
@@ -424,6 +542,9 @@ class GaiaLinkService:
                 # Prepend the selection to the text so the tool sees it
                 text = f"Randomly selected {proposal_name} (ID: {proposal_id}) | {text}"
         
+        # Detect vault type
+        vault_type = "YIELD" if any(kw in text.lower() for kw in ["無損", "yield", "lossless", "pool", "earn"]) else "DIRECT"
+
         # Detect if user explicitly wants to approve
         is_approval = "approve" in text.lower() or "授權" in text or "allowance" in text.lower()
 
@@ -436,6 +557,7 @@ class GaiaLinkService:
             proposal_id=proposal_id,
             proposal_name=proposal_name,
             recipient_address=blockchain_config.addresses.proposal_manager,
+            vault_type=vault_type, # Pass vault_type
             action="APPROVE" if is_approval else "DEPOSIT"
         )
 

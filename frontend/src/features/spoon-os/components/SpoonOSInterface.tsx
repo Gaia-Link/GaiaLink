@@ -208,7 +208,10 @@ export default function SpoonOSInterface({ isOpen, onClose, selectedPoint, onAct
 
         try {
             // Call the Agent Service
-            const response = await sendMessageToAgent(textToSend, { selectedPoint });
+            const response = await sendMessageToAgent(textToSend, {
+                selectedPoint,
+                user_address: address // Pass connected wallet address
+            });
 
             // Add agent response to history
             const newAgentMsg: Message = {
@@ -218,7 +221,21 @@ export default function SpoonOSInterface({ isOpen, onClose, selectedPoint, onAct
             };
             setMessages(prev => [...prev, newAgentMsg]);
 
-            if (response.ui_hints.mode) {
+            // Trigger Transaction Logic if payload exists (Batch or Single)
+            if (response.transaction_payload || response.transaction_sequence) {
+                // Determine sequence
+                const sequence = response.transaction_sequence || [];
+
+                if (sequence.length > 0) {
+                    setTxSequence(sequence);
+                    setCurrentTxIdx(0);
+                } else if (response.transaction_payload) {
+                    // Single transaction
+                    setTxSequence([]); // Ensure empty
+                }
+
+                setMode('SIGNATURE');
+            } else if (response.ui_hints?.mode) {
                 // Map legacy PROCESSING to THINKING if needed, though backend likely sends DECISION
                 if (response.ui_hints.mode === 'PROCESSING') {
                     setMode('THINKING');

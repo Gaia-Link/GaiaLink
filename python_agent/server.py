@@ -123,7 +123,7 @@ async def chat(request: ChatRequest):
         # HYBRID AGENT EXECUTION via SERVICE LAYER (for real LLM providers)
         # ------------------------------------------------------------------
         try:
-             return await service.process_message(request.message)
+             return await service.process_message(request.message, context_data=request.context)
 
         except Exception as e:
             logger.warning(f"Service failed ({e}). Falling back to rule-based.")
