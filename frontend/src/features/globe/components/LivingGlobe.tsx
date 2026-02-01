@@ -11,7 +11,7 @@ export interface LivingGlobeProps {
     isLaunched?: boolean;
     activeSection?: number;
     scrollProgress?: number;
-    flyToLocation?: { lng: number, lat: number } | null;
+    flyToLocation?: { lng: number, lat: number, zoom?: number } | null;
 }
 
 export default function LivingGlobe({ data, onPointClick, onMapClick, isLaunched = true, activeSection = 0, scrollProgress = 0, flyToLocation }: LivingGlobeProps) {
@@ -73,8 +73,8 @@ export default function LivingGlobe({ data, onPointClick, onMapClick, isLaunched
                 ...prev,
                 longitude: flyToLocation.lng,
                 latitude: flyToLocation.lat,
-                zoom: 4, // Closer zoom for specific locations
-                transitionDuration: 2000,
+                zoom: flyToLocation.zoom || 10, // Close up by default (10 instead of 4)
+                transitionDuration: 2500, // Slightly longer for a deeper zoom
                 transitionEasing: (t: number) => t * (2 - t) // Ease-out
             }));
         }

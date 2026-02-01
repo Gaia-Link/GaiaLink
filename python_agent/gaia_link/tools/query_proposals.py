@@ -111,9 +111,10 @@ class QueryProposalsTool(BaseTool):
                         "location": p.location,
                         "contributors_count": p.contributors_count,
                     }
-                    for p in proposals
+                for p in proposals
                 ],
                 "total_count": len(proposals),
+                "system_hint": "CRITICAL: If the user asked to 'navigate', 'locate', or 'view', you MUST include a 'FLY_TO_LOCATION' action in your JSON response for the top result. Use zoom level 12."
             }
         except Exception as e:
             return {"success": False, "error": f"Query failed: {e}"}

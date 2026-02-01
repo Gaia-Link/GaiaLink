@@ -70,7 +70,7 @@ export default function Page() { // Unified Entry Point
     const [isSpoonOpen, setIsSpoonOpen] = useState(false);     // Controls visibility
     const [isDonationOpen, setIsDonationOpen] = useState(false);
     const [isPortfolioOpen, setIsPortfolioOpen] = useState(false);
-    const [flyToLocation, setFlyToLocation] = useState<{ lng: number, lat: number } | null>(null);
+    const [flyToLocation, setFlyToLocation] = useState<{ lng: number, lat: number, zoom?: number } | null>(null);
     const [creationCoords, setCreationCoords] = useState<{ lat: number, lng: number } | null>(null);
     const [optimisticPoints, setOptimisticPoints] = useState<CrisisPoint[]>([]);
 
@@ -134,7 +134,11 @@ export default function Page() { // Unified Entry Point
             console.log("📂 Opening proposal:", data);
             // 1. Fly to location
             if (data.lat && data.lng) {
-                setFlyToLocation({ lat: data.lat, lng: data.lng });
+                setFlyToLocation({
+                    lat: data.lat,
+                    lng: data.lng,
+                    zoom: data.zoom || 12 // Default to close zoom if not specified 
+                });
             }
 
             // 2. Open details (Requires finding the point or constructing a mock one)

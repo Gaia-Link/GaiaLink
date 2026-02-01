@@ -223,7 +223,15 @@ class ExecuteDonationTool(BaseTool):
             if proposals:
                 # 優先完全符合
                 exact_match = next((p for p in proposals if p.title.lower() == proposal_name.lower()), None)
-                proposal_id = exact_match.proposal_id if exact_match else proposals[0].proposal_id
+                matched = exact_match or proposals[0]
+                proposal_id = matched.proposal_id
+                proposal_name = matched.title
+                proposal_location = matched.location
+                print(f"--- Tool: Resolved '{proposal_name}' to ID {proposal_id} at {proposal_location} ---")
+            else:
+                proposal_location = None
+        else:
+            proposal_location = None
 
         if action == "APPROVE":
             # Generate Approval Payload
@@ -315,6 +323,8 @@ class ExecuteDonationTool(BaseTool):
                 "token": token,
                 "vault_type": vault_type,
                 "proposal_id": proposal_id,
+                "proposal_name": proposal_name,
+                "location": proposal_location,
                 "recipient": recipient_address if not proposal_id else tx_to,
                 "token_contract": tx_to if token != "ETH" else None,
                 "estimated_gas": estimated_gas

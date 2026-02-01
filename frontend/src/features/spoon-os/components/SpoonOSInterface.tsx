@@ -231,6 +231,15 @@ export default function SpoonOSInterface({ isOpen, onClose, selectedPoint, onAct
             } else {
                 setMode('DECISION');
             }
+
+            // AUTO-FLY SIDE EFFECT: If the response has a FLY_TO_LOCATION action, trigger it immediately
+            if (response.ui_hints.actions) {
+                const flyAction = response.ui_hints.actions.find((a: any) => a.type === 'FLY_TO_LOCATION');
+                if (flyAction && flyAction.data) {
+                    console.log("✈️ Auto-flying to location:", flyAction.data);
+                    onAction('FLY_TO_LOCATION', flyAction.data);
+                }
+            }
         } catch (error) {
             console.error("Agent Error:", error);
             setMessages(prev => [...prev, { role: 'agent', content: "Sorry, I encountered an error. Please try again." }]);
@@ -464,7 +473,8 @@ export default function SpoonOSInterface({ isOpen, onClose, selectedPoint, onAct
                                                                                     setMode('SIGNATURE');
                                                                                 }
                                                                             } else {
-                                                                                onAction(act.type, selectedPoint);
+                                                                                // Prefer act.data for coordinates/ids, fallback to selectedPoint
+                                                                                onAction(act.type, act.data || selectedPoint);
                                                                                 if (act.type !== 'sign_proposal') { setMode('IDLE'); onClose(); }
                                                                             }
                                                                         }}

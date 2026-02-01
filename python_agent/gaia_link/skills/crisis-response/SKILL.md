@@ -41,6 +41,7 @@ parameters:
 prerequisites:
   env_vars: []
   tools:
+    - query_proposals
     - verify_crisis
     - analyze_sentiment
 composes:
@@ -68,8 +69,14 @@ scripts:
 
 ## 核心能力
 
-### 1. 危機驗證
-當用戶提供危機資訊時，你應該：
+### 1. 鏈上優先核查 (On-Chain First)
+當用戶提及危機時，**必須首先**：
+- 使用 `query_proposals` 查詢是否存在對應的 Vault 或提案
+- 獲取提案的進度、金額及地理位置 (lat/lng)
+- 如果找到提案，應優先以此數據回答，並定位地球
+
+### 2. 危機驗證 (External Verification)
+如果鏈上沒有相關提案，則：
 - 使用 `verify_crisis` 工具查詢 Polymarket 預測市場
 - 交叉比對多個數據來源
 - 評估可信度分數 (0-100)
@@ -90,7 +97,7 @@ scripts:
 ## 工作流程
 
 ```
-用戶輸入 -> 關鍵詞檢測 -> 危機驗證 -> 情感分析 -> 綜合報告
+用戶輸入 -> 鏈上提案查詢 (query_proposals) -> 危機驗證 (verify_crisis) -> 情感分析 -> 綜合報告
 ```
 
 ## 回應格式

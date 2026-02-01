@@ -79,6 +79,31 @@ class GaiaLinkService:
             transaction_payload = data.get("transaction_payload")
             ui_hints = data.get("ui_hints", {"mode": "IDLE", "actions": []})
 
+            # AUTO-NAVIGATION Fallback: Detect coords in response text
+            has_move_intent = any(kw in message.lower() for kw in ["轉移", "定位", "center", "move", "focus", "聚焦", "正中央", "導航", "navigate"])
+            if has_move_intent and not any(a.get("type") == "FLY_TO_LOCATION" for a in ui_hints.get("actions", [])):
+                # Match various lat/lng formats (including "緯度: 34.352")
+                lat_match = re.search(r'(?:[緯w][度d]|lat|latitude)[^-\d]*(-?\d+\.\d+)', response_text, re.IGNORECASE)
+                lng_match = re.search(r'(?:[經j][度d]|lng|lng|longitude)[^-\d]*(-?\d+\.\d+)', response_text, re.IGNORECASE)
+                
+                if lat_match and lng_match:
+                    lat = float(lat_match.group(1))
+                    lng = float(lng_match.group(1))
+                    print(f"--- Service: Auto-injecting FLY_TO to ({lat}, {lng}) ---")
+                    
+                    if "actions" not in ui_hints: ui_hints["actions"] = []
+                    ui_hints["actions"].insert(0, {
+                        "label": "Locking On Location",
+                        "type": "FLY_TO_LOCATION",
+                        "data": {"lat": lat, "lng": lng, "zoom": 12},
+                        "icon": "globe"
+                    })
+                    action_taken = "fly_to_location"
+                    
+                    # CLEANUP: Replace "tutorial-like" instructions with professional ones
+                    if any(kw in response_text for kw in ["請將地標中心", "座標如下", "你可以將", "指令如下"]):
+                        data["message"] = "已經為您鎖定目標區域，畫面正在轉移與縮放中。"
+
             # 4. Detect donation response
             is_donation_intent = (
                 action_taken == "execute_donation" or 
@@ -262,7 +287,7 @@ class GaiaLinkService:
                 response_obj.ui_hints["actions"].insert(0, {
                     "label": f"View {crises_list[0]['title']}", 
                     "type": "FLY_TO_LOCATION", 
-                    "data": {"lat": coords["lat"], "lng": coords["lng"]},
+                    "data": {"lat": coords["lat"], "lng": coords["lng"], "zoom": 10},
                     "icon": "globe"
                 })
 
@@ -427,6 +452,22 @@ class GaiaLinkService:
                 ui_hints={"mode": "IDLE", "actions": []}
             )
 
+        # Extract proposal details
+        details = result.get("details", {})
+        proposal_id = details.get("proposal_id")
+        proposal_name = details.get("proposal_name")
+        location = details.get("location")
+        
+        # Base actions available for donation intents
+        base_actions = []
+        if location:
+            base_actions.append({
+                "label": f"View {proposal_name or 'Proposal'}", 
+                "type": "FLY_TO_LOCATION", 
+                "data": {**location, "zoom": 12}, # Very close zoom for specific proposals
+                "icon": "globe"
+            })
+
         if is_approval:
             return ChatResponse(
                 message=f"I've prepared the USDC approval for {amount} {token}. Once this is signed, you can proceed with the donation.",
@@ -439,7 +480,7 @@ class GaiaLinkService:
                         "badge_color": "yellow",
                         "risk_level": "LOW"
                     },
-                    "actions": [{"label": "Sign Approval", "type": "sign_transaction", "icon": "shield-check"}]
+                    "actions": base_actions + [{"label": "Sign Approval", "type": "sign_transaction", "icon": "shield-check"}]
                 },
                 transaction_payload=result.get("transaction_payload")
             )
@@ -479,7 +520,7 @@ class GaiaLinkService:
                         "badge_color": "blue",
                         "risk_level": "LOW"
                     },
-                    "actions": [
+                    "actions": base_actions + [
                         {"label": "Start Donation", "type": "sign_transaction", "icon": "pen-tool"}
                     ]
                 },
@@ -502,7 +543,7 @@ class GaiaLinkService:
                     "badge_color": "green",
                     "risk_level": "LOW"
                 },
-                "actions": [
+                "actions": base_actions + [
                     {"label": "Sign Donation", "type": "sign_transaction", "icon": "pen-tool"}
                 ]
             },
