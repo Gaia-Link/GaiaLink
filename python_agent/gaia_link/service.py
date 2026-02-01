@@ -477,22 +477,24 @@ class GaiaLinkService:
         
         More aggressive detection to ensure the UI button appears.
         """
-        # Pattern 1: Keywords suggesting intent
-        has_donation_intent = bool(re.search(r'捐贈|捐款|donate|donation|give|help with|支付|授權', text, re.IGNORECASE))
+        # Pattern 1: Keywords suggesting intent (Simplified + Traditional + Simple 捐)
+        # Added: 捐, 簽名, 签署, 直接捐, 支付
+        has_donation_intent = bool(re.search(r'捐贈|捐款|捐|donate|donation|give|help with|支付|授權|authorize', text, re.IGNORECASE))
         
         # Pattern 2: Token amount (e.g., "1 USDC", "1USDC")
         has_token_amount = bool(re.search(r'\d+(?:\.\d+)?\s*(USDC|USDT|ETH|DAI)', text, re.IGNORECASE))
         
         # Pattern 3: Structural indicators (ETH address or Gas)
-        has_structural = bool(re.search(r'0x[a-fA-F0-9]{40}|[Gg]as', text))
+        has_structural = bool(re.search(r'0x[a-fA-F0-9]{40}|[Gg]as|Gas 費用', text))
         
         # Exclude history/listing context - CRITICAL FIX
         # If the text explicitly mentions "records", "history", "list", "past", "total", ignore donation keywords
         # BUT be careful: Agent often says "Ask me about records" after a successful donation.
         # So we only exclude if we DO NOT find strong donation signals like "ready to sign", "prepared", "transaction".
-        is_transaction_ready = bool(re.search(r'ready|prepared|transaction|sign|簽署|準備好|交易', text, re.IGNORECASE))
+        # Added Simplified + common variants
+        is_transaction_ready = bool(re.search(r'ready|prepared|transaction|sign|簽署|签署|簽名|签名|準備|準備好|准备|准备好|交易', text, re.IGNORECASE))
         
-        if not is_transaction_ready and re.search(r'history|record|list|past|total|amount donated|捐款過|清單|總額|總計|歷史', text, re.IGNORECASE):
+        if not is_transaction_ready and re.search(r'history|record|list|past|total|amount donated|捐款過|清單|總額|總計|歷史|历史', text, re.IGNORECASE):
              return False
 
         # Match if it has (intent AND amount) OR structural indicators
@@ -773,75 +775,45 @@ class GaiaLinkService:
                 "data": {**location, "zoom": 12}, # Very close zoom for specific proposals
                 "icon": "globe"
             })
-
-        if is_approval:
-            return ChatResponse(
-                message=f"I've prepared the USDC approval for {amount} {token}. Once this is signed, you can proceed with the donation.",
-                action_taken="execute_donation",
-                ui_hints={
-                    "mode": "DECISION",
-                    "display_data": {
-                        "title": f"Approve {amount} {token}",
-                        "badge_text": "Approval Needed",
-                        "badge_color": "yellow",
-                        "risk_level": "LOW"
-                    },
-                    "actions": base_actions + [{"label": "Sign Approval", "type": "sign_transaction", "icon": "shield-check"}]
-                },
-                transaction_payload=result.get("transaction_payload")
-            )
-
-        # Handle Donation (DEPOSIT)
-        proposal_info = f" to Proposal #{proposal_id}" if proposal_id else ""
         
-        # If USDC, we provide a sequence: [APPROVE, DEPOSIT]
-        if token == "USDC":
-            approve_result = await tool.execute(
-                amount=amount,
-                token=token,
-                proposal_id=proposal_id,
-                proposal_name=proposal_name,
-                recipient_address=blockchain_config.addresses.proposal_manager,
-                action="APPROVE"
-            )
+        # Define proposal_info for message formatting
+        proposal_info = f" to Proposal #{proposal_id}" if proposal_id else ""
 
-            if not approve_result.get("success"):
-                return ChatResponse(
-                    message=f"I couldn't prepare the approval: {approve_result.get('error', 'Unknown error')}.",
-                    action_taken="error",
-                    ui_hints={"mode": "IDLE", "actions": []}
-                )
-
-            approve_payload = approve_result.get("transaction_payload") or {}
-            deposit_payload = result.get("transaction_payload") or {}
-            
-            return ChatResponse(
-                message=text if len(text) > 20 else f"I've prepared the two-step donation for {amount} {token}{proposal_info}. \n\n1. **Approve**: Authorize the contract to spend your USDC.\n2. **Confirm**: Execute the actual donation.",
-                action_taken="execute_donation",
-                ui_hints={
-                    "mode": "DECISION",
-                    "display_data": {
-                        "title": f"Donate {amount} {token}{proposal_info}",
-                        "badge_text": "2 Steps Required",
-                        "badge_color": "blue",
-                        "risk_level": "LOW"
-                    },
-                    "actions": base_actions + [
-                        {"label": "Start Donation", "type": "sign_transaction", "icon": "pen-tool"}
-                    ]
+        # Final Response: Trust the tool's output structure
+        # If the tool returned a sequence (Batch), pass it through
+        tx_payload = result.get("transaction_payload")
+        tx_sequence = result.get("transaction_sequence")
+        
+        # Determine display message
+        message_to_send = text if len(text) > 20 else result.get("message", f"I've prepared your donation of {amount} {token}{proposal_info}.")
+        
+        # Determine UI hints based on action
+        if result.get("action") == "BATCH_TRANSACTION" or tx_sequence:
+            ui_hints = {
+                "mode": "DECISION",
+                "display_data": {
+                    "title": f"Donate {amount} {token}{proposal_info}",
+                    "badge_text": f"{len(tx_sequence)} Steps Required",
+                    "badge_color": "blue",
+                    "risk_level": "LOW"
                 },
-                transaction_payload=approve_payload, # First step
-                transaction_sequence=[
-                    {**approve_payload, "label": "Step 1: Approve USDC"},
-                    {**deposit_payload, "label": "Step 2: Confirm Donation"}
+                "actions": base_actions + [
+                    {"label": "Start Donation", "type": "sign_transaction", "icon": "pen-tool"}
                 ]
-            )
-
-        # Default single transaction (e.g. ETH)
-        return ChatResponse(
-            message=text if len(text) > 20 else f"I've prepared your donation of {amount} {token}{proposal_info}.",
-            action_taken="execute_donation",
-            ui_hints={
+            }
+        elif is_approval:
+             ui_hints = {
+                "mode": "DECISION",
+                "display_data": {
+                    "title": f"Approve {amount} {token}",
+                    "badge_text": "Approval Needed",
+                    "badge_color": "yellow",
+                    "risk_level": "LOW"
+                },
+                "actions": base_actions + [{"label": "Sign Approval", "type": "sign_transaction", "icon": "shield-check"}]
+            }
+        else:
+            ui_hints = {
                 "mode": "DECISION",
                 "display_data": {
                     "title": f"Donate {amount} {token}{proposal_info}",
@@ -852,6 +824,12 @@ class GaiaLinkService:
                 "actions": base_actions + [
                     {"label": "Sign Donation", "type": "sign_transaction", "icon": "pen-tool"}
                 ]
-            },
-            transaction_payload=result.get("transaction_payload")
+            }
+
+        return ChatResponse(
+            message=message_to_send,
+            action_taken="execute_donation",
+            ui_hints=ui_hints,
+            transaction_payload=tx_payload,
+            transaction_sequence=tx_sequence
         )

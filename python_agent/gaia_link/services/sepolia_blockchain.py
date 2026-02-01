@@ -26,15 +26,15 @@ SEPOLIA_EXPLORER_URL = os.getenv("EXPLORER_URL", "https://sepolia.etherscan.io")
 
 # 代幣合約地址 (Sepolia 測試網)
 SEPOLIA_TOKEN_CONTRACTS = {
-    "USDC": os.getenv("USDC_TOKEN_ADDRESS", "0x68b1d87f95878fe05b998f19b66f4baba5de1aed"),  # MockUSDC
-    "USDT": os.getenv("USDT_TOKEN_ADDRESS", "0x7169D38820dfd117C3FA1f22a697dBA58d90BA06"),
-    "DAI": os.getenv("DAI_TOKEN_ADDRESS", "0x3e622317f8C93f7328350cF0B56d9eD4C620C5d6"),
+    "USDC": os.getenv("USDC_TOKEN_ADDRESS", ""),
+    "USDT": os.getenv("USDT_TOKEN_ADDRESS", ""),
+    "DAI": os.getenv("DAI_TOKEN_ADDRESS", ""),
 }
 
 # Gaia Protocol Contracts
 GAIA_CONTRACTS = {
-    "ProposalManager": os.getenv("PROPOSAL_MANAGER_ADDRESS", "0x84ea74d481ee0a5332c457a4d796187f6ba67feb"),
-    "CharityRegistry": os.getenv("CHARITY_REGISTRY_ADDRESS", "0xc3e53f4d16ae77db1c982e75a937b9f60fe63690")
+    "ProposalManager": os.getenv("PROPOSAL_MANAGER_ADDRESS", ""),
+    "CharityRegistry": os.getenv("CHARITY_REGISTRY_ADDRESS", "")
 }
 
 # ERC20 轉帳 ABI (只需要 transfer 函數)
@@ -128,6 +128,11 @@ class SepoliaBlockchainService(BlockchainService):
     def is_connected(self) -> bool:
         """檢查是否已連接到網絡"""
         return self._web3.is_connected()
+
+    @property
+    def w3(self):
+        """獲取 Web3 實例"""
+        return self._web3
 
     @property
     def sender_address(self) -> Optional[str]:

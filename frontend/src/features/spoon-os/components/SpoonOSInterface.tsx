@@ -416,27 +416,30 @@ export default function SpoonOSInterface({ isOpen, onClose, selectedPoint, onAct
                                                     );
 
                                                     const resp = txMsg?.response;
-                                                    let actions = resp?.ui_hints?.actions || [];
+                                                    let backendActions = resp?.ui_hints?.actions || [];
+
+                                                    // Separate signature actions and other actions (like FLY_TO)
+                                                    let signatureActions = backendActions.filter((a: any) => a.type === 'sign_transaction');
 
                                                     // If we have a payload/sequence but no explicit "sign_transaction" action, create a default one
-                                                    const hasSignAction = actions.some((a: any) => a.type === 'sign_transaction');
-                                                    if (!hasSignAction && (resp?.transaction_payload || resp?.transaction_sequence)) {
-                                                        const defaultAction = {
+                                                    if (signatureActions.length === 0 && (resp?.transaction_payload || resp?.transaction_sequence)) {
+                                                        signatureActions = [{
                                                             label: "Sign Transaction",
                                                             type: "sign_transaction",
                                                             icon: "pen-tool"
-                                                        };
-                                                        // Ensure we don't duplicate if actions is empty array
-                                                        actions = [...actions, defaultAction];
+                                                        }];
                                                     }
 
-                                                    return actions.map((action: any, idx: number) => (
+                                                    const actionsToRender = signatureActions;
+
+                                                    return actionsToRender.map((action: any, idx: number) => (
                                                         <button
                                                             key={idx}
                                                             onClick={() => {
                                                                 const payload = resp?.transaction_payload;
                                                                 const sequence = resp?.transaction_sequence;
 
+                                                                // Execute appropriate handler based on type
                                                                 if (action.type === 'sign_transaction') {
                                                                     if (sequence && sequence.length > 0) {
                                                                         handleSignTransaction(sequence[currentTxIdx]);
@@ -444,7 +447,8 @@ export default function SpoonOSInterface({ isOpen, onClose, selectedPoint, onAct
                                                                         handleSignTransaction(payload);
                                                                     }
                                                                 } else {
-                                                                    onAction(action.type, payload);
+                                                                    // For fallback/other button types (should be rare in Signature mode)
+                                                                    onAction(action.type, action.data || payload);
                                                                     setMode('IDLE');
                                                                     onClose();
                                                                     setTxSequence([]);

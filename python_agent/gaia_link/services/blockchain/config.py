@@ -220,6 +220,17 @@ ERC20_ABI = [
         "stateMutability": "view",
         "type": "function",
     },
+    {
+        "inputs": [
+            {"name": "owner", "type": "address"},
+            {"name": "spender", "type": "address"},
+        ],
+        "name": "allowance",
+        "outputs": [{"name": "", "type": "uint256"}],
+        "stateMutability": "view",
+        "type": "function",
+        "constant": True
+    },
 ]
 
 
@@ -259,13 +270,22 @@ class BlockchainConfig:
     @classmethod
     def from_env(cls) -> "BlockchainConfig":
         """Load configuration from environment variables."""
+        charity_registry = os.getenv("CHARITY_REGISTRY_ADDRESS", "")
+        proposal_manager = os.getenv("PROPOSAL_MANAGER_ADDRESS", "")
+        usdc_token = os.getenv("USDC_TOKEN_ADDRESS", "")
+        
+        print(f"--- Config: Loading from ENV ---")
+        print(f"--- Config: ProposalManager: {proposal_manager}")
+        print(f"--- Config: CharityRegistry: {charity_registry}")
+        print(f"--- Config: USDC Token: {usdc_token}")
+
         return cls(
             rpc_url=os.getenv("RPC_URL", "http://127.0.0.1:8545"),
             chain_id=int(os.getenv("CHAIN_ID", "31337")),  # Anvil default
             addresses=ContractAddresses(
-                charity_registry=os.getenv("CHARITY_REGISTRY_ADDRESS", ""),
-                proposal_manager=os.getenv("PROPOSAL_MANAGER_ADDRESS", ""),
-                usdc_token=os.getenv("USDC_TOKEN_ADDRESS", ""),
+                charity_registry=charity_registry,
+                proposal_manager=proposal_manager,
+                usdc_token=usdc_token,
             ),
             private_key=os.getenv("WALLET_PRIVATE_KEY"),
             gas_limit=int(os.getenv("GAS_LIMIT", "500000")),

@@ -35,12 +35,11 @@ TOKEN_USD_RATES = {
 
 # Sepolia 測試網代幣合約地址
 import os
-# Sepolia 測試網代幣合約地址
-# Token Contract Addresses (Default to Sepolia, but should be configurable)
+# Token Contract Addresses (Should come from env/config)
 SEPOLIA_TOKEN_CONTRACTS = {
-    "USDC": os.getenv("USDC_TOKEN_ADDRESS", "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238"),
-    "USDT": "0x7169D38820dfd117C3FA1f22a697dBA58d90BA06", # Placeholder if not set env
-    "DAI": "0x68194a729C2450ad26072b3D33ADaCbcef39D574",
+    "USDC": os.getenv("USDC_TOKEN_ADDRESS", ""),
+    "USDT": os.getenv("USDT_TOKEN_ADDRESS", ""),
+    "DAI": os.getenv("DAI_TOKEN_ADDRESS", ""),
 }
 
 # 代幣小數位數
@@ -297,8 +296,14 @@ class ExecuteDonationTool(BaseTool):
                     if service.w3:
                         print("--- Tool Debug: Web3 Service Available ---")
                         from gaia_link.services.blockchain.config import ERC20_ABI
-                        contract = service.w3.eth.contract(address=token_addr, abi=ERC20_ABI)
-                        current_allowance = contract.functions.allowance(user_address, spender_addr).call()
+                        
+                        # Fix: Ensure addresses are Checksum Address
+                        token_addr_checksum = service.w3.to_checksum_address(token_addr)
+                        spender_addr_checksum = service.w3.to_checksum_address(spender_addr)
+                        user_address_checksum = service.w3.to_checksum_address(user_address)
+
+                        contract = service.w3.eth.contract(address=token_addr_checksum, abi=ERC20_ABI)
+                        current_allowance = contract.functions.allowance(user_address_checksum, spender_addr_checksum).call()
                         
                         required_amount = int(amount * (10 ** 18)) # Using 18 decimals for Gaia
                         
