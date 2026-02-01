@@ -60,6 +60,8 @@ export function useProposals() {
                 description,
                 raised,
                 hasVault,
+                isBackend: false,
+                charityId: Number(p.charityId),
                 // On-Chain status
                 accepted: p.accepted,
                 directVault: p.directVault as `0x${string}`,

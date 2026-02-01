@@ -33,8 +33,8 @@ SEPOLIA_TOKEN_CONTRACTS = {
 
 # Gaia Protocol Contracts
 GAIA_CONTRACTS = {
-    "ProposalManager": os.getenv("PROPOSAL_MANAGER_ADDRESS", "0xc6e7df5e7b4f2a278906862b61205850344d4e7d"),
-    "CharityRegistry": os.getenv("CHARITY_REGISTRY_ADDRESS", "0x3aa5ebb10dc797cac828524e59a333d0a371443c")
+    "ProposalManager": os.getenv("PROPOSAL_MANAGER_ADDRESS", "0x84ea74d481ee0a5332c457a4d796187f6ba67feb"),
+    "CharityRegistry": os.getenv("CHARITY_REGISTRY_ADDRESS", "0xc3e53f4d16ae77db1c982e75a937b9f60fe63690")
 }
 
 # ERC20 轉帳 ABI (只需要 transfer 函數)

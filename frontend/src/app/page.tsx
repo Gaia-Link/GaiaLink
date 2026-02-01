@@ -18,6 +18,7 @@ import { useSendTransaction } from 'wagmi';
 import { History } from 'lucide-react';
 import UserPortfolioModal from '@/features/portfolio/UserPortfolioModal';
 import { useProposals } from '@/hooks/useProposals';
+import { useNewsPoints } from '@/hooks/useNewsPoints';
 import VaultCreationModal from '@/features/landing/components/VaultCreationModal';
 
 // Internal component to handle scroll tracking safely
@@ -77,6 +78,7 @@ export default function Page() { // Unified Entry Point
     // --- Data & Hooks ---
     const { sendTransaction } = useSendTransaction();
     const onChainProposals = useProposals();
+    const { newsPoints } = useNewsPoints();
 
     // Deduplicate: Remove optimistic points if a real point exists near the same location
     const filteredOptimistic = optimisticPoints.filter(op => {
@@ -87,7 +89,15 @@ export default function Page() { // Unified Entry Point
         return !exists;
     });
 
-    const data = [...onChainProposals, ...filteredOptimistic];
+    // Deduplicate: Remove news points if a real on-chain proposal exists near the same location
+    const filteredNews = newsPoints.filter(np => {
+        const exists = onChainProposals.some(real =>
+            Math.abs(real.lat - np.lat) < 0.005 && Math.abs(real.lng - np.lng) < 0.005
+        );
+        return !exists;
+    });
+
+    const data = [...onChainProposals, ...filteredOptimistic, ...filteredNews];
 
     // --- App Specific Effects ---
     // Toggle SpoonOS with Spacebar (Only if launched)

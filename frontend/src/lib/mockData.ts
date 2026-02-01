@@ -7,8 +7,10 @@ export interface CrisisPoint {
     type: 'crisis' | 'voice' | 'node' | 'warning';
     description?: string;
     hasVault?: boolean;
+    isBackend?: boolean;
     asset?: string;
     raised?: number;
+    charityId?: number;
 }
 
 export const MOCK_DATA: CrisisPoint[] = [
@@ -19,6 +21,7 @@ export const MOCK_DATA: CrisisPoint[] = [
         intensity: 0.8,
         label: 'Morocco Earthquake Reconstruction',
         type: 'crisis',
-        description: 'Post-earthquake reconstruction for remote villages in the Atlas Mountains.'
+        description: 'Post-earthquake reconstruction for remote villages in the Atlas Mountains.',
+        charityId: 1
     },
 ];

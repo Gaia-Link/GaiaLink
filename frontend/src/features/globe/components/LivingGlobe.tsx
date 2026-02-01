@@ -87,15 +87,21 @@ export default function LivingGlobe({ data, onPointClick, onMapClick, isLaunched
         if (point.type === 'warning') return '#F6E05E'; // Yellow for warnings
 
         // Crisis logic:
-        if (point.hasVault) {
-            return '#F6E05E'; // Golden/Yellow for Active Vaults (Money!)
-        } else {
-            return '#F56565'; // Red for Needs/Alerts (No Vault yet)
+        // On-chain points (isBackend: false)
+        if (!point.isBackend) {
+            if (point.hasVault) {
+                return '#F6E05E'; // Yellow/Gold for Active On-Chain Vaults
+            }
+            return '#F56565'; // Red for On-Chain Proposals without Vault (Needs/Alerts)
         }
+
+        // Backend/News points (isBackend: true)
+        return '#9F7AEA'; // Purple for all Backend/News-based points
     };
 
     const markers = useMemo(() => data.map((point) => {
-        const size = point.hasVault ? 24 : 12 + (point.intensity * 10); // Reduced size: 24px for Vault, 12-22px for others
+        // News points (purple) are slightly larger (18px) than normal red dots (12px) to be visible
+        const size = point.hasVault ? 24 : (point.isBackend ? 18 : 12) + (point.intensity * 10);
         const color = getMarkerColor(point);
         const isSelected = selectedId === point.id;
 
@@ -130,7 +136,7 @@ export default function LivingGlobe({ data, onPointClick, onMapClick, isLaunched
                             boxShadow: `0 0 ${isSelected ? 20 : 10}px ${color}`,
                             border: '2px solid rgba(0,0,0,0.5)',
                             transition: 'all 0.3s ease',
-                            animation: point.intensity > 0.7 ? 'pulse 2s infinite' : 'none'
+                            animation: (point.intensity > 0.7 || point.isBackend) ? 'pulse 2s infinite' : 'none'
                         }}
                         className="relative flex items-center justify-center"
                     >

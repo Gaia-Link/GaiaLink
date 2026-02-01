@@ -696,6 +696,204 @@
                 "confidence": 82
             },
             "vaults": []
+        },
+        {
+            "id": "brazil_floods_2024",
+            "keywords": [
+                "brazil",
+                "floods",
+                "rio grande do sul",
+                "porto alegre",
+                "巴西",
+                "洪災"
+            ],
+            "title": "Rio Grande do Sul Flash Floods",
+            "description": "Historic rainfall has caused unprecedented flooding in southern Brazil, displacing hundreds of thousands.",
+            "severity": "CRITICAL",
+            "location": {
+                "lat": -30.034,
+                "lng": -51.217,
+                "region": "Rio Grande do Sul, Brazil"
+            },
+            "verification": {
+                "status": "VERIFIED",
+                "confidence": 92
+            },
+            "vaults": []
+        },
+        {
+            "id": "vietnam_typhoon_yagi",
+            "keywords": [
+                "vietnam",
+                "typhoon",
+                "yagi",
+                "hanoi",
+                "haiphong",
+                "越南",
+                "摩羯颱風"
+            ],
+            "title": "Typhoon Yagi Humanitarian Relief",
+            "description": "The strongest typhoon to hit Vietnam in decades has caused widespread destruction and landslides in northern provinces.",
+            "severity": "CRITICAL",
+            "location": {
+                "lat": 21.028,
+                "lng": 105.834,
+                "region": "Northern Vietnam"
+            },
+            "verification": {
+                "status": "VERIFIED",
+                "confidence": 95
+            },
+            "vaults": []
+        },
+        {
+            "id": "spain_valencia_floods",
+            "keywords": [
+                "spain",
+                "valencia",
+                "floods",
+                "dana",
+                "flash floods",
+                "西班牙",
+                "水災"
+            ],
+            "title": "Valencia Flash Flood Emergency",
+            "description": "Catastrophic flash floods caused by extreme rainfall have devastated the Valencia region.",
+            "severity": "CRITICAL",
+            "location": {
+                "lat": 39.469,
+                "lng": -0.376,
+                "region": "Valencia, Spain"
+            },
+            "verification": {
+                "status": "VERIFIED",
+                "confidence": 98
+            },
+            "vaults": []
+        },
+        {
+            "id": "nigeria_borno_floods",
+            "keywords": [
+                "nigeria",
+                "borno",
+                "maiduguri",
+                "floods",
+                "dam failure",
+                "奈及利亞",
+                "大水"
+            ],
+            "title": "Borno State Flood Emergency",
+            "description": "Severe flooding following a dam failure in Maiduguri has submerged half the city and displaced millions.",
+            "severity": "HIGH",
+            "location": {
+                "lat": 11.833,
+                "lng": 13.150,
+                "region": "Borno, Nigeria"
+            },
+            "verification": {
+                "status": "VERIFIED",
+                "confidence": 88
+            },
+            "vaults": []
+        },
+        {
+            "id": "drc_mpox_2024",
+            "keywords": [
+                "drc",
+                "congo",
+                "mpox",
+                "outbreak",
+                "health",
+                "剛果",
+                "猴痘"
+            ],
+            "title": "DRC Mpox Health Crisis",
+            "description": "A surge in Mpox cases in the Democratic Republic of Congo is stressing local medical facilities.",
+            "severity": "HIGH",
+            "location": {
+                "lat": -4.322,
+                "lng": 15.307,
+                "region": "Kinshara, DRC"
+            },
+            "verification": {
+                "status": "VERIFIED",
+                "confidence": 85
+            },
+            "vaults": []
+        },
+        {
+            "id": "nepal_monsoon_2024",
+            "keywords": [
+                "nepal",
+                "monsoon",
+                "landslides",
+                "kathmandu",
+                "floods",
+                "尼泊爾",
+                "土石流"
+            ],
+            "title": "Nepal Monsoon Disaster Relief",
+            "description": "Heavy monsoon rains have triggered deadly landslides and floods across Nepal.",
+            "severity": "HIGH",
+            "location": {
+                "lat": 27.717,
+                "lng": 85.324,
+                "region": "Kathmandu, Nepal"
+            },
+            "verification": {
+                "status": "VERIFIED",
+                "confidence": 90
+            },
+            "vaults": []
+        },
+        {
+            "id": "peru_wildfires_2024",
+            "keywords": [
+                "peru",
+                "amazon",
+                "wildfires",
+                "forest fire",
+                "秘魯",
+                "森林大火"
+            ],
+            "title": "Peru Amazon Forest Fires",
+            "description": "Drought-driven wildfires are ravaging parts of the Peruvian Amazon, threatening biodiversity and communities.",
+            "severity": "HIGH",
+            "location": {
+                "lat": -3.749,
+                "lng": -73.253,
+                "region": "Amazonas, Peru"
+            },
+            "verification": {
+                "status": "VERIFIED",
+                "confidence": 92
+            },
+            "vaults": []
+        },
+        {
+            "id": "caribbean_hurricane_beryl",
+            "keywords": [
+                "hurricane",
+                "beryl",
+                "caribbean",
+                "grenadines",
+                "st vincent",
+                "加勒比海",
+                "颶風"
+            ],
+            "title": "Hurricane Beryl Recovery",
+            "description": "Islands in the Grenadines are rebuilding after the catastrophic impact of Category 5 Hurricane Beryl.",
+            "severity": "HIGH",
+            "location": {
+                "lat": 13.160,
+                "lng": -61.230,
+                "region": "Kingstown, St Vincent"
+            },
+            "verification": {
+                "status": "VERIFIED",
+                "confidence": 94
+            },
+            "vaults": []
         }
     ],
     "proposals": []

@@ -217,13 +217,16 @@ class ExecuteDonationTool(BaseTool):
 
         # 自動解析提案名稱為 ID
         if not proposal_id and proposal_name:
+            # Clean proposal name (remove common suffixes like "提案", "project", etc.)
+            clean_name = re.sub(r'(提案|project|proposal|campaign|的)$', '', proposal_name).strip()
+            
             from gaia_link.services.proposal import get_proposal_service
             service = get_proposal_service()
-            proposals = await service.list_proposals(title_query=proposal_name)
-            print(f"--- Tool: Name resolution for '{proposal_name}' returned {len(proposals)} matches ---")
+            proposals = await service.list_proposals(title_query=clean_name)
+            print(f"--- Tool: Name resolution for '{clean_name}' (original: '{proposal_name}') returned {len(proposals)} matches ---")
             if proposals:
                 # 優先完全符合
-                exact_match = next((p for p in proposals if p.title.lower() == proposal_name.lower()), None)
+                exact_match = next((p for p in proposals if p.title.lower() == clean_name.lower()), None)
                 matched = exact_match or proposals[0]
                 proposal_id = matched.proposal_id
                 proposal_name = matched.title
@@ -231,6 +234,9 @@ class ExecuteDonationTool(BaseTool):
                 print(f"--- Tool: Resolved '{proposal_name}' to ID {proposal_id} at {proposal_location} ---")
             else:
                 proposal_location = None
+                return self._build_error_response(
+                    f"I couldn't find any active project matching '{proposal_name}'. Please verify the name or use the proposal ID directly."
+                )
         else:
             proposal_location = None
 
@@ -303,9 +309,8 @@ class ExecuteDonationTool(BaseTool):
 
             # CRITICAL: Prevent direct transfer to ProposalManager
             if recipient_address.lower() == blockchain_config.addresses.proposal_manager.lower():
-                found_msg = f" (Attempted name resolution for '{proposal_name}' but found no matching project on-chain)" if proposal_name else ""
                 return self._build_error_response(
-                    f"Direct transfer to ProposalManager is prohibited. Please specify a valid project name or ID.{found_msg}"
+                    f"Direct transfer to ProposalManager is prohibited. Please specify a valid project name or ID."
                 )
 
         return {

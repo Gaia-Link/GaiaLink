@@ -1,4 +1,5 @@
 import os
+import json
 import logging
 import uvicorn
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Body
@@ -28,7 +29,7 @@ app = FastAPI(title="GaiaLink Agent API")
 # Configure CORS for frontend access
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"], 
+    allow_origins=["*"], 
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -45,6 +46,21 @@ class ChatRequest(BaseModel):
 @app.get("/")
 def read_root():
     return {"status": "ok", "agent": "GaiaLinkAgent"}
+
+@app.get("/api/crises")
+async def get_crises():
+    """Expose the curated crisis database to the frontend."""
+    data_path = Path(__file__).parent.parent / "backend_data" / "data.json"
+    if not data_path.exists():
+        return {"crises": []}
+    
+    try:
+        with open(data_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data
+    except Exception as e:
+        logger.error(f"Error reading data.json: {e}")
+        return {"crises": [], "error": str(e)}
 
 async def handle_donation_request(message_lower: str):
     """Handle donation requests with real ERC20 calldata generation."""

@@ -122,9 +122,27 @@ class GaiaLinkService:
 
             if is_donation_intent:
                 print(f"--- Service: Preparing donation response (Action: {action_taken}) ---")
-                # Combine original message + agent response to ensure we have all context (amount, token, name)
-                combined_text = f"{message} | {data.get('message', response_text)}"
-                return await self._prepare_donation_response(combined_text)
+                
+                # IMPROVEMENT: Try to extract as much metadata as possible from the agent turn result
+                # to avoid relying solely on flaky regex fallbacks.
+                agent_msg = data.get("message", response_text)
+                details = data.get("details", {})
+                
+                override_amount = details.get("amount") or data.get("amount")
+                override_token = details.get("token") or data.get("token")
+                override_id = details.get("proposal_id") or data.get("proposal_id")
+                override_name = details.get("proposal_name") or data.get("proposal_name")
+
+                # Combine original message + agent response for complete context
+                combined_text = f"{message} | {agent_msg}"
+                
+                return await self._prepare_donation_response(
+                    combined_text,
+                    override_amount=override_amount,
+                    override_token=override_token,
+                    override_proposal_id=override_id,
+                    override_proposal_name=override_name
+                )
 
             # 4.5 Detect Withdrawal Response (Fix for missing blue button)
             # Check if agent mentioned "提取", "withdraw" and "successfully" or "found"
@@ -309,7 +327,9 @@ class GaiaLinkService:
             match = re.search(pattern, clean_message, re.IGNORECASE)
             if match:
                 name = match.group(1).strip()
-                # Remove artifacts
+                # Remove common trailing artifacts like "提案", "project", "campaign"
+                name = re.sub(r'(提案|project|proposal|campaign|的)$', '', name).strip()
+                # Remove amount/token artifacts
                 name = re.sub(r'(?:\s|^)\d+(\.\d+)?\s*(USDC|USDT|ETH|DAI).*$', '', name, flags=re.IGNORECASE).strip()
                 name = re.sub(r'\s+(directly|now|immediately)$', '', name, flags=re.IGNORECASE).strip()
                 if name and len(name) > 2: return name

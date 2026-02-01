@@ -9,6 +9,7 @@ import { parseUnits } from 'viem';
 
 import { PROPOSAL_MANAGER_ADDRESS } from '@/lib/constants';
 import { GAIA_PROPOSAL_MANAGER_ABI, MOCK_ERC20_ABI } from '@/lib/abis';
+import { useCharity } from '@/hooks/useCharity';
 
 interface DonationModalProps {
     isOpen: boolean;
@@ -23,6 +24,8 @@ export default function DonationModal({ isOpen, onClose, point }: DonationModalP
     const [donationType, setDonationType] = useState<DonationType>('DIRECT');
     const [step, setStep] = useState<'IDLE' | 'PROCESSING' | 'SUCCESS'>('IDLE');
     const [lastAction, setLastAction] = useState<'APPROVE' | 'DEPOSIT' | null>(null);
+
+    const { name: charityName } = useCharity(point?.charityId);
 
     const { address } = useAccount();
     const { data: hash, writeContractAsync, isPending, reset } = useWriteContract();
@@ -136,11 +139,11 @@ export default function DonationModal({ isOpen, onClose, point }: DonationModalP
                             <p className="text-gray-400">
                                 You successfully donated <span className="text-white font-mono">{amount} USDC</span> to {point.label}.
                                 {donationType === 'YIELD' && (
-                                <>
-                                    <br />
-                                    <span className="text-blue-400 text-sm mt-2 block">Yield farming active via Euler Finance. Protocol APY: 4.5%</span>
-                                </>
-                            )}
+                                    <>
+                                        <br />
+                                        <span className="text-blue-400 text-sm mt-2 block">Yield farming active via Euler Finance. Protocol APY: 4.5%</span>
+                                    </>
+                                )}
                             </p>
                             <button onClick={handleClose} className="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-xl transition mt-4">
                                 Close
@@ -154,6 +157,12 @@ export default function DonationModal({ isOpen, onClose, point }: DonationModalP
                                     <div>
                                         <h2 className="text-xl font-bold text-white">Make a Donation</h2>
                                         <p className="text-sm text-gray-400">Target: {point.label}</p>
+                                        {point.charityId && (
+                                            <p className="text-xs text-blue-400 mt-1 flex items-center gap-1">
+                                                <ShieldCheck size={12} />
+                                                Institution: {charityName || `Charity #${point.charityId}`}
+                                            </p>
+                                        )}
                                     </div>
                                     <button onClick={onClose} className="text-gray-500 hover:text-white transition">
                                         <X size={24} />

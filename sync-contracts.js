@@ -50,6 +50,39 @@ export const CHAIN_ID = ${data.chain || 31337};
 
     fs.writeFileSync(OUTPUT_FILE, fileContent);
     console.log('✅ Generated frontend config at:', OUTPUT_FILE);
+
+    // Update Python Agent .env
+    const ENV_FILE = path.join(__dirname, 'python_agent/.env');
+    if (fs.existsSync(ENV_FILE)) {
+        let envContent = fs.readFileSync(ENV_FILE, 'utf8');
+
+        const updates = {
+            'PROPOSAL_MANAGER_ADDRESS': contracts['GaiaProposalManager'],
+            'CHARITY_REGISTRY_ADDRESS': contracts['GaiaCharityRegistry'],
+            'USDC_TOKEN_ADDRESS': contracts['MockERC20']
+        };
+
+        let updated = false;
+        for (const [key, value] of Object.entries(updates)) {
+            if (value) {
+                const regex = new RegExp(`^${key}=.*`, 'm');
+                if (regex.test(envContent)) {
+                    envContent = envContent.replace(regex, `${key}=${value}`);
+                    updated = true;
+                } else {
+                    envContent += `\n${key}=${value}`;
+                    updated = true;
+                }
+            }
+        }
+
+        if (updated) {
+            fs.writeFileSync(ENV_FILE, envContent);
+            console.log('✅ Updated Python Agent .env at:', ENV_FILE);
+        }
+    } else {
+        console.warn('⚠️ python_agent/.env not found, skipping update.');
+    }
 }
 
 generateConfig();

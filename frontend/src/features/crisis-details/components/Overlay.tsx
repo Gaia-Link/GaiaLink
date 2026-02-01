@@ -4,6 +4,7 @@ import type { CrisisPoint } from '@/lib/mockData';
 import { X, Heart, ShieldCheck, ShieldAlert } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getVerificationStatus, formatLocation } from '../utils/verificationUtils';
+import { useCharity } from '@/hooks/useCharity';
 
 export interface OverlayProps {
     point: CrisisPoint | null;
@@ -11,7 +12,10 @@ export interface OverlayProps {
     onDonate?: (point: CrisisPoint) => void;
 }
 
+
 export default function Overlay({ point, onClose, onDonate }: OverlayProps) {
+    const { name: charityName, isLoading: isCharityLoading } = useCharity(point?.charityId);
+
     if (!point) return null;
 
     const verification = getVerificationStatus(point);
@@ -47,6 +51,12 @@ export default function Overlay({ point, onClose, onDonate }: OverlayProps) {
                             <span className="text-gray-400 text-sm">Just now</span>
                         </div>
                         <h2 className="text-3xl font-bold leading-tight">{point.label}</h2>
+                        {point.charityId && (
+                            <div className="mt-2 flex items-center gap-2 text-blue-400 font-medium">
+                                <ShieldCheck size={16} />
+                                <span>Target organization: {isCharityLoading ? 'Loading...' : (charityName || `Charity #${point.charityId}`)}</span>
+                            </div>
+                        )}
                     </div>
 
                     {/* Validation Status (SpoonOS Agent) */}
@@ -95,7 +105,7 @@ export default function Overlay({ point, onClose, onDonate }: OverlayProps) {
                                     className="w-full bg-white text-black font-bold py-4 rounded-xl hover:bg-gray-200 transition-all flex items-center justify-center gap-2 group"
                                 >
                                     <Heart size={20} className="text-red-500 group-hover:scale-125 transition-transform" />
-                                    Donate More
+                                    Support
                                 </button>
                             ) : (
                                 <div className="space-y-3">
@@ -104,7 +114,7 @@ export default function Overlay({ point, onClose, onDonate }: OverlayProps) {
                                         className="w-full bg-blue-600 text-white font-bold py-4 rounded-xl hover:bg-blue-500 transition-all flex items-center justify-center gap-2"
                                     >
                                         <Heart size={20} className="text-white" />
-                                        Support & Open Vault
+                                        Open Vault
                                     </button>
                                     <p className="text-[10px] text-gray-500 leading-relaxed italic">
                                         Funds are held securely by the Gaia Contract. Once an institution verifies and accepts this crisis, the vault will be deployed and funds transferred for immediate aid.
