@@ -294,24 +294,38 @@ class GaiaLinkService:
             r'(?:向|給)\s*([^直接\s]+(?: [^直接\s]+)*)\s*(?:直接)?(?:捐款|捐贈|捐)',
             r'donate(?:ing)?\s+(?:(?:\d+(?:\.\d+)?)\s*(?:USDC|USDT|ETH|DAI|tokens?)?\s+)?to\s+(.+)',
             r'donate\s+to\s+(.+?)(?:\s+(?:directly|now|1|usdc|usdt|eth|dai)|$)',
+            r'到\s+(.+?)(?:\s+(?:直接|捐款|捐)|$|，|,)', # New: "到 [Name]"
+            r'for\s+(.+?)(?:\s+(?:campaign|project)|$)',
             r'給\s*(.+?)\s*捐款',
             r'幫助\s*(.+)',
             r'^(.+?)(?:提案|project|proposal)\s*(?:我要|我想|I want|allows)', 
             r'(.*?)\s*(?:的)?幫我',
-            # Fallback: anything between '向' and '直接' or '捐'
             r'向\s*(.+?)\s*(?:直接|捐)',
             r'^(.+?)(?=\s*(?:我要|我想|I want).*(?:捐|donate))',
         ]
+        
+        # 1. Try to extract from User Message
         for pattern in patterns:
             match = re.search(pattern, clean_message, re.IGNORECASE)
             if match:
                 name = match.group(1).strip()
-                # Remove artifacts like 1 USDC if caught at the end
+                # Remove artifacts
                 name = re.sub(r'(?:\s|^)\d+(\.\d+)?\s*(USDC|USDT|ETH|DAI).*$', '', name, flags=re.IGNORECASE).strip()
-                # Remove "directly" or "now" if caught
                 name = re.sub(r'\s+(directly|now|immediately)$', '', name, flags=re.IGNORECASE).strip()
-                
                 if name and len(name) > 2: return name
+
+        # 2. Fallback: Parse from Agent Response (if available in message)
+        # message is "User Text | Agent Text"
+        parts = message.split('|')
+        if len(parts) > 1:
+            agent_text = parts[1].strip()
+            # Look for quoted name in agent response: 「Name」 or "Name"
+            # Matches: 「Herat Afghanistan Earthquake」
+            quote_match = re.search(r'[「"“](.+?)[」"”]', agent_text)
+            if quote_match:
+                print(f"--- Service: Recovered proposal name from agent response: {quote_match.group(1)} ---")
+                return quote_match.group(1)
+        
         return None
 
     def _is_donation_response(self, text: str) -> bool:
