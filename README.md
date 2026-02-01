@@ -419,6 +419,13 @@ GaiaLink_Original/
 
 ---
 
+## 截圖
+
+<img width="1582" height="1035" alt="Screenshot 2026-02-01 at 9 43 12 PM" src="https://github.com/user-attachments/assets/b9cf47b9-c2b6-4ca4-9726-cbb7083b5529" />
+
+<img width="1582" height="1035" alt="Screenshot 2026-02-01 at 9 43 16 PM" src="https://github.com/user-attachments/assets/1d866a4c-0dde-4f43-a8b9-2c9001f56b4f" />
+
+
 ## 授權
 
 MIT License
